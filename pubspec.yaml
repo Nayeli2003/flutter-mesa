@@ -40,6 +40,8 @@ dependencies:
   fl_chart: ^0.70.0
   pdf: ^3.11.0
   printing: ^5.13.0
+  dio: ^5.0.0
+  flutter_secure_storage: ^9.0.0
 
 dev_dependencies:
   flutter_test:
