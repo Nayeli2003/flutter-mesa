@@ -18,15 +18,36 @@ class _LoginViewState extends State<LoginView> {
   bool _loading = false;
   String? _error;
 
-  //  Cambia esta URL según dónde corras la app:
-  // Android emulator: http://10.0.2.2:8000
-  // iOS simulator: http://127.0.0.1:8000
-  // Cel físico: http://IP_DE_TU_PC:8000
-  //Android emulador: 'http://10.0.2.2:8000/api',
+  bool _showPassword = false; //
+
+  // 2 Para Android emulator usa 10.0.2.2
   final Dio _dio = Dio(BaseOptions(
     baseUrl: 'http://127.0.0.1:8000/api',
     headers: {'Accept': 'application/json'},
+    connectTimeout: const Duration(seconds: 10),
+    receiveTimeout: const Duration(seconds: 10),
   ));
+
+  String _extractRol(dynamic user) {
+    // Soporta varias formas:
+    // 1) user['rol'] = 'admin'
+    // 2) user['rol'] = { nombre_rol: 'admin' }
+    // 3) user['nombre_rol'] = 'admin'
+    final rolField = (user is Map<String, dynamic>) ? user['rol'] : null;
+
+    if (rolField is String) return rolField.toLowerCase().trim();
+
+    if (rolField is Map) {
+      final nombre = rolField['nombre_rol']?.toString() ?? '';
+      return nombre.toLowerCase().trim();
+    }
+
+    final nombreRol = (user is Map<String, dynamic>)
+        ? (user['nombre_rol']?.toString() ?? '')
+        : '';
+
+    return nombreRol.toLowerCase().trim();
+  }
 
   Future<void> _login() async {
     setState(() {
@@ -34,29 +55,57 @@ class _LoginViewState extends State<LoginView> {
       _error = null;
     });
 
+    final username = _userController.text.trim();
+    final password = _passController.text;
+
+    if (username.isEmpty || password.isEmpty) {
+      setState(() {
+        _loading = false;
+        _error = 'Ingresa usuario y contraseña';
+      });
+      return;
+    }
+
     try {
       final res = await _dio.post('/login', data: {
-        'username': _userController.text.trim(),
-        'password': _passController.text,
+        'username': username,
+        'password': password,
       });
 
-      final token = res.data['token'] as String;
-      final user = res.data['user'] as Map<String, dynamic>;
+      final token = res.data['token']?.toString();
+      final user = res.data['user'];
 
-      // Tu backend manda: rol = admin / tecnico / sucursal
-      final rol = (user['rol'] ?? '').toString().toLowerCase();
+      if (token == null || token.isEmpty) {
+        setState(() => _error = 'No se recibió token del servidor');
+        return;
+      }
+      if (user is! Map<String, dynamic>) {
+        setState(() => _error = 'Respuesta inválida del servidor (user)');
+        return;
+      }
+
+      final rol = _extractRol(user);
 
       //  Guarda token y datos básicos
       await _storage.write(key: 'token', value: token);
       await _storage.write(key: 'rol', value: rol);
-      await _storage.write(key: 'id_usuario', value: user['id_usuario'].toString());
-      if (user['id_sucursal'] != null) {
-        await _storage.write(key: 'id_sucursal', value: user['id_sucursal'].toString());
+
+      final idUsuario = user['id_usuario']?.toString();
+      if (idUsuario != null) {
+        await _storage.write(key: 'id_usuario', value: idUsuario);
       }
+
+      final idSucursal = user['id_sucursal']?.toString();
+      if (idSucursal != null) {
+        await _storage.write(key: 'id_sucursal', value: idSucursal);
+      }
+
+      //  (Recomendado) setear token en Dio para siguientes requests
+      _dio.options.headers['Authorization'] = 'Bearer $token';
 
       if (!mounted) return;
 
-      // Navegación por rol
+      //  Navegación por rol
       if (rol == 'admin') {
         Navigator.pushReplacementNamed(context, '/admin');
       } else if (rol == 'tecnico') {
@@ -66,11 +115,15 @@ class _LoginViewState extends State<LoginView> {
       } else {
         setState(() => _error = 'Rol desconocido: $rol');
       }
-
     } on DioException catch (e) {
-      final msg = e.response?.data is Map<String, dynamic>
-          ? (e.response?.data['message']?.toString() ?? 'Error al iniciar sesión')
-          : 'Error al iniciar sesión';
+      // Mensaje de error más confiable
+      String msg = 'Error al iniciar sesión';
+      final data = e.response?.data;
+      if (data is Map<String, dynamic>) {
+        msg = data['message']?.toString() ?? msg;
+      } else if (e.response?.statusCode == 401) {
+        msg = 'Usuario o contraseña incorrectos';
+      }
 
       setState(() => _error = msg);
     } finally {
@@ -124,6 +177,7 @@ class _LoginViewState extends State<LoginView> {
 
                 TextField(
                   controller: _userController,
+                  textInputAction: TextInputAction.next,
                   decoration: InputDecoration(
                     labelText: 'Usuario',
                     prefixIcon: const Icon(Icons.person),
@@ -137,10 +191,17 @@ class _LoginViewState extends State<LoginView> {
 
                 TextField(
                   controller: _passController,
-                  obscureText: true,
+                  obscureText: !_showPassword,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _loading ? null : _login(),
                   decoration: InputDecoration(
                     labelText: 'Contraseña',
                     prefixIcon: const Icon(Icons.lock),
+                    //  ojito
+                    suffixIcon: IconButton(
+                      onPressed: () => setState(() => _showPassword = !_showPassword),
+                      icon: Icon(_showPassword ? Icons.visibility_off : Icons.visibility),
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(15),
                     ),
