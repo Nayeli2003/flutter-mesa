@@ -20,7 +20,7 @@ class _LoginViewState extends State<LoginView> {
 
   bool _showPassword = false; //
 
-  // 2 Para Android emulator usa 10.0.2.2
+  // Para Android emulator usa 10.0.2.2
   final Dio _dio = Dio(BaseOptions(
     baseUrl: 'http://127.0.0.1:8000/api',
     headers: {'Accept': 'application/json'},

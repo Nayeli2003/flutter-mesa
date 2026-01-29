@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../widgets/app_drawer.dart';
 import 'dart:ui' show PointerDeviceKind;
 
-
 enum AdminTicketStatus { abierto, enProceso, cerrado }
 
 enum AdminTicketPriority { verde, naranja, rojo }
@@ -44,8 +43,8 @@ class _AdminTicketsViewState extends State<AdminTicketsView> {
   AdminTicketStatus? _status;
   AdminTicketPriority? _priority;
 
-  String? _branch; // filtro por sucursal (texto)
-  String? _tech; // filtro por tecnico (texto)
+  String? _branch;
+  String? _tech;
 
   DateTime? _fromDate;
   DateTime? _toDate;
@@ -56,7 +55,7 @@ class _AdminTicketsViewState extends State<AdminTicketsView> {
     super.dispose();
   }
 
-  //  Datos dummy (luego lo conectas a backend)
+  // Datos dummy
   List<AdminTicketModel> _ticketsFake() => [
     AdminTicketModel(
       folio: 'TK-001',
@@ -131,7 +130,7 @@ class _AdminTicketsViewState extends State<AdminTicketsView> {
   Widget build(BuildContext context) {
     final all = _ticketsFake();
 
-    //  Aplicar filtros
+    // filtros
     List<AdminTicketModel> filtered = all;
 
     final q = _searchCtrl.text.trim().toLowerCase();
@@ -155,10 +154,13 @@ class _AdminTicketsViewState extends State<AdminTicketsView> {
 
     if (_branch != null && _branch!.trim().isNotEmpty) {
       final b = _branch!.trim().toLowerCase();
-      filtered = filtered.where((t) {
-        return t.branchId.toLowerCase().contains(b) ||
-            t.sucursal.toLowerCase().contains(b);
-      }).toList();
+      filtered = filtered
+          .where(
+            (t) =>
+                t.branchId.toLowerCase().contains(b) ||
+                t.sucursal.toLowerCase().contains(b),
+          )
+          .toList();
     }
 
     if (_tech != null && _tech!.trim().isNotEmpty) {
@@ -201,19 +203,21 @@ class _AdminTicketsViewState extends State<AdminTicketsView> {
                 maxWidth: isWide ? 1200 : double.infinity,
               ),
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(isWide ? 16 : 12),
                 child: Column(
                   children: [
                     _AdminFiltersBar(
                       searchCtrl: _searchCtrl,
                       status: _status,
                       priority: _priority,
+                      branch: _branch,
+                      tech: _tech,
+                      fromDate: _fromDate,
+                      toDate: _toDate,
                       onStatusChanged: (v) => setState(() => _status = v),
                       onPriorityChanged: (v) => setState(() => _priority = v),
                       onBranchChanged: (v) => setState(() => _branch = v),
                       onTechChanged: (v) => setState(() => _tech = v),
-                      fromDate: _fromDate,
-                      toDate: _toDate,
                       onPickFrom: _pickFromDate,
                       onPickTo: _pickToDate,
                       onClear: _clearFilters,
@@ -236,7 +240,7 @@ class _AdminTicketsViewState extends State<AdminTicketsView> {
   }
 }
 
-/* ===================== FILTER BAR ===================== */
+/* ===================== FILTER BAR (RESPONSIVE) ===================== */
 
 class _AdminFiltersBar extends StatelessWidget {
   final TextEditingController searchCtrl;
@@ -244,13 +248,17 @@ class _AdminFiltersBar extends StatelessWidget {
   final AdminTicketStatus? status;
   final AdminTicketPriority? priority;
 
-  final ValueChanged<AdminTicketStatus?> onStatusChanged;
-  final ValueChanged<AdminTicketPriority?> onPriorityChanged;
-  final ValueChanged<String> onBranchChanged;
-  final ValueChanged<String> onTechChanged;
+  final String? branch;
+  final String? tech;
 
   final DateTime? fromDate;
   final DateTime? toDate;
+
+  final ValueChanged<AdminTicketStatus?> onStatusChanged;
+  final ValueChanged<AdminTicketPriority?> onPriorityChanged;
+  final ValueChanged<String?> onBranchChanged;
+  final ValueChanged<String?> onTechChanged;
+
   final VoidCallback onPickFrom;
   final VoidCallback onPickTo;
 
@@ -261,12 +269,14 @@ class _AdminFiltersBar extends StatelessWidget {
     required this.searchCtrl,
     required this.status,
     required this.priority,
+    required this.branch,
+    required this.tech,
+    required this.fromDate,
+    required this.toDate,
     required this.onStatusChanged,
     required this.onPriorityChanged,
     required this.onBranchChanged,
     required this.onTechChanged,
-    required this.fromDate,
-    required this.toDate,
     required this.onPickFrom,
     required this.onPickTo,
     required this.onClear,
@@ -278,6 +288,181 @@ class _AdminFiltersBar extends StatelessWidget {
     return '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   }
 
+  void _openMobileFilters(BuildContext context) {
+    AdminTicketStatus? s = status;
+    AdminTicketPriority? p = priority;
+    final branchCtrl = TextEditingController(text: branch ?? '');
+    final techCtrl = TextEditingController(text: tech ?? '');
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setLocal) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 12,
+                bottom: 16 + MediaQuery.of(ctx).viewInsets.bottom,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Filtros',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () {
+                            setLocal(() {
+                              s = null;
+                              p = null;
+                              branchCtrl.clear();
+                              techCtrl.clear();
+                            });
+                          },
+                          icon: const Icon(Icons.clear),
+                          label: const Text('Limpiar'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<AdminTicketStatus>(
+                      value: s,
+                      items: const [
+                        DropdownMenuItem(
+                          value: null,
+                          child: Text('Estado: Todos'),
+                        ),
+                        DropdownMenuItem(
+                          value: AdminTicketStatus.abierto,
+                          child: Text('Abierto'),
+                        ),
+                        DropdownMenuItem(
+                          value: AdminTicketStatus.enProceso,
+                          child: Text('En proceso'),
+                        ),
+                        DropdownMenuItem(
+                          value: AdminTicketStatus.cerrado,
+                          child: Text('Cerrado'),
+                        ),
+                      ],
+                      onChanged: (v) => setLocal(() => s = v),
+                      decoration: const InputDecoration(
+                        labelText: 'Estado',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<AdminTicketPriority>(
+                      value: p,
+                      items: const [
+                        DropdownMenuItem(
+                          value: null,
+                          child: Text('Prioridad: Todas'),
+                        ),
+                        DropdownMenuItem(
+                          value: AdminTicketPriority.verde,
+                          child: Text('Verde'),
+                        ),
+                        DropdownMenuItem(
+                          value: AdminTicketPriority.naranja,
+                          child: Text('Naranja'),
+                        ),
+                        DropdownMenuItem(
+                          value: AdminTicketPriority.rojo,
+                          child: Text('Rojo'),
+                        ),
+                      ],
+                      onChanged: (v) => setLocal(() => p = v),
+                      decoration: const InputDecoration(
+                        labelText: 'Prioridad',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: branchCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Sucursal (ID o nombre)',
+                        prefixIcon: Icon(Icons.store),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: techCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Técnico',
+                        prefixIcon: Icon(Icons.engineering),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: onPickFrom,
+                            icon: const Icon(Icons.date_range),
+                            label: Text('Desde: ${_fmt(fromDate)}'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: onPickTo,
+                            icon: const Icon(Icons.date_range),
+                            label: Text('Hasta: ${_fmt(toDate)}'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          onStatusChanged(s);
+                          onPriorityChanged(p);
+                          onBranchChanged(
+                            branchCtrl.text.trim().isEmpty
+                                ? null
+                                : branchCtrl.text.trim(),
+                          );
+                          onTechChanged(
+                            techCtrl.text.trim().isEmpty
+                                ? null
+                                : techCtrl.text.trim(),
+                          );
+                          onChanged();
+                          Navigator.pop(ctx);
+                        },
+                        icon: const Icon(Icons.check),
+                        label: const Text('Aplicar'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -285,14 +470,54 @@ class _AdminFiltersBar extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         child: LayoutBuilder(
           builder: (context, c) {
+            final isMobile = c.maxWidth < 800;
             final isWide = c.maxWidth >= 1100;
 
+            if (isMobile) {
+              // Compacto en celular: solo buscar + botón filtros + limpiar
+              return Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: searchCtrl,
+                      onChanged: (_) => onChanged(),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        labelText: 'Buscar',
+                        hintText: 'Folio / título / sucursal / técnico',
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 10,
+                          horizontal: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  IconButton(
+                    tooltip: 'Filtros',
+                    onPressed: () => _openMobileFilters(context),
+                    icon: const Icon(Icons.tune),
+                  ),
+                  IconButton(
+                    tooltip: 'Limpiar',
+                    onPressed: onClear,
+                    icon: const Icon(Icons.clear),
+                  ),
+                ],
+              );
+            }
+
+            //  Desktop / Tablet: completo
             return Wrap(
               spacing: 12,
               runSpacing: 12,
               children: [
                 SizedBox(
-                  width: isWide ? 360 : double.infinity,
+                  width: isWide ? 360 : 320,
                   child: TextField(
                     controller: searchCtrl,
                     onChanged: (_) => onChanged(),
@@ -305,9 +530,8 @@ class _AdminFiltersBar extends StatelessWidget {
                     ),
                   ),
                 ),
-
                 SizedBox(
-                  width: isWide ? 200 : double.infinity,
+                  width: isWide ? 200 : 190,
                   child: DropdownButtonFormField<AdminTicketStatus>(
                     value: status,
                     items: const [
@@ -337,9 +561,8 @@ class _AdminFiltersBar extends StatelessWidget {
                     ),
                   ),
                 ),
-
                 SizedBox(
-                  width: isWide ? 220 : double.infinity,
+                  width: isWide ? 220 : 200,
                   child: DropdownButtonFormField<AdminTicketPriority>(
                     value: priority,
                     items: const [
@@ -369,11 +592,11 @@ class _AdminFiltersBar extends StatelessWidget {
                     ),
                   ),
                 ),
-
                 SizedBox(
-                  width: isWide ? 220 : double.infinity,
+                  width: isWide ? 220 : 200,
                   child: TextField(
-                    onChanged: onBranchChanged,
+                    onChanged: (v) =>
+                        onBranchChanged(v.trim().isEmpty ? null : v),
                     decoration: InputDecoration(
                       labelText: 'Sucursal (ID o nombre)',
                       prefixIcon: const Icon(Icons.store),
@@ -383,11 +606,11 @@ class _AdminFiltersBar extends StatelessWidget {
                     ),
                   ),
                 ),
-
                 SizedBox(
-                  width: isWide ? 220 : double.infinity,
+                  width: isWide ? 220 : 200,
                   child: TextField(
-                    onChanged: onTechChanged,
+                    onChanged: (v) =>
+                        onTechChanged(v.trim().isEmpty ? null : v),
                     decoration: InputDecoration(
                       labelText: 'Técnico',
                       prefixIcon: const Icon(Icons.engineering),
@@ -397,9 +620,8 @@ class _AdminFiltersBar extends StatelessWidget {
                     ),
                   ),
                 ),
-
                 SizedBox(
-                  width: isWide ? 200 : double.infinity,
+                  width: 200,
                   child: OutlinedButton.icon(
                     onPressed: onPickFrom,
                     icon: const Icon(Icons.date_range),
@@ -407,16 +629,15 @@ class _AdminFiltersBar extends StatelessWidget {
                   ),
                 ),
                 SizedBox(
-                  width: isWide ? 200 : double.infinity,
+                  width: 200,
                   child: OutlinedButton.icon(
                     onPressed: onPickTo,
                     icon: const Icon(Icons.date_range),
                     label: Text('Hasta: ${_fmt(toDate)}'),
                   ),
                 ),
-
                 SizedBox(
-                  width: isWide ? 140 : double.infinity,
+                  width: 140,
                   child: TextButton.icon(
                     onPressed: onClear,
                     icon: const Icon(Icons.clear),
@@ -462,7 +683,7 @@ class _AdminTicketsCards extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             subtitle: Text(
-              '${t.branchId} • ${t.sucursal}\n'
+              '${t.sucursal}\n'
               'Técnico: ${t.tecnico}\n'
               '${_statusText(t.status)} • ${_fmtDate(t.fecha)} • SLA: ${t.slaCumple ? "Cumple" : "No cumple"}',
             ),
@@ -479,7 +700,7 @@ class _AdminTicketsCards extends StatelessWidget {
                   'priority': _priorityText(t.priority).toUpperCase(),
                   'status': _statusText(t.status),
                   'createdAt': _fmtDate(t.fecha),
-                  'isTechnician': false, // admin solo lectura por ahora
+                  'isTechnician': false,
                   'category': 'Admin',
                   'description': 'Detalle pendiente de backend',
                   'evidences': <Map<String, dynamic>>[],
@@ -494,7 +715,7 @@ class _AdminTicketsCards extends StatelessWidget {
   }
 }
 
-/* ===================== WEB/DESKTOP: TABLE ===================== */
+/* ===================== WEB/DESKTOP: TABLE (SIN HUECOS) ===================== */
 
 class _AdminTicketsTable extends StatefulWidget {
   final List<AdminTicketModel> tickets;
@@ -521,9 +742,36 @@ class _AdminTicketsTableState extends State<_AdminTicketsTable> {
       return const Center(child: Text('No hay tickets para mostrar.'));
     }
 
+    // Ajusta estos valores si quieres MÁS compacto todavía
+    const double wFolio = 80;
+    const double wTitulo = 340;
+    const double wTecnico = 170;
+    const double wSucursal = 200;
+    const double wEstado = 120;
+    const double wPrioridad = 120;
+    const double wSla = 110;
+    const double wAccion = 90;
+
+    const double columnSpacing = 12;
+    const double horizontalMargin = 10;
+
+    const int cols = 8;
+    const double sumWidths =
+        wFolio +
+        wTitulo +
+        wTecnico +
+        wSucursal +
+        wEstado +
+        wPrioridad +
+        wSla +
+        wAccion;
+
+    //  minWidth EXACTO = suma + espacios + márgenes (esto quita el “hueco” raro)
+    final double minWidth =
+        sumWidths + (columnSpacing * (cols - 1)) + (horizontalMargin * 2);
+
     return Card(
       child: ScrollConfiguration(
-        // esto permite arrastrar con mouse en web/desktop
         behavior: const MaterialScrollBehavior().copyWith(
           dragDevices: {
             PointerDeviceKind.mouse,
@@ -540,7 +788,7 @@ class _AdminTicketsTableState extends State<_AdminTicketsTable> {
             controller: _h,
             scrollDirection: Axis.horizontal,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: 1350), //  asegura que quepan columnas
+              constraints: BoxConstraints(minWidth: minWidth),
               child: Scrollbar(
                 controller: _v,
                 thumbVisibility: true,
@@ -550,13 +798,16 @@ class _AdminTicketsTableState extends State<_AdminTicketsTable> {
                   controller: _v,
                   scrollDirection: Axis.vertical,
                   child: DataTable(
+                    columnSpacing: 8, // ↓ más pegadito
+                    horizontalMargin: 10,
+                    dataRowMinHeight: 44,
+                    dataRowMaxHeight: 56,
+                    headingRowHeight: 48,
                     columns: const [
                       DataColumn(label: Text('Folio')),
                       DataColumn(label: Text('Título')),
-                      DataColumn(label: Text('ID Sucursal')),
-                      DataColumn(label: Text('Sucursal')),
                       DataColumn(label: Text('Técnico')),
-                      DataColumn(label: Text('Fecha')),
+                      DataColumn(label: Text('Sucursal')),
                       DataColumn(label: Text('Estado')),
                       DataColumn(label: Text('Prioridad')),
                       DataColumn(label: Text('SLA')),
@@ -566,45 +817,64 @@ class _AdminTicketsTableState extends State<_AdminTicketsTable> {
                       return DataRow(
                         cells: [
                           DataCell(Text(t.folio)),
+
+                          // TÍTULO SIN WIDTH FIJO (esto quita el hueco)
                           DataCell(
-                            SizedBox(
-                              width: 260, //  evita que el título haga la tabla gigante
-                              child: Text(t.titulo, overflow: TextOverflow.ellipsis),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                maxWidth: 260,
+                              ), // ajusta 240-300
+                              child: Text(
+                                t.titulo,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ),
-                          DataCell(Text(t.branchId)),
+
                           DataCell(
-                            SizedBox(
-                              width: 180,
-                              child: Text(t.sucursal, overflow: TextOverflow.ellipsis),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 160),
+                              child: Text(
+                                t.tecnico,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ),
                           DataCell(
-                            SizedBox(
-                              width: 150,
-                              child: Text(t.tecnico, overflow: TextOverflow.ellipsis),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 200),
+                              child: Text(
+                                t.sucursal,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ),
-                          DataCell(Text(_fmtDate(t.fecha))),
                           DataCell(Text(_statusText(t.status))),
                           DataCell(_PriorityChip(priority: t.priority)),
                           DataCell(_SlaChip(ok: t.slaCumple)),
                           DataCell(
                             TextButton(
                               onPressed: () {
-                                Navigator.pushNamed(context, '/ticket-detail', arguments: {
-                                  'id': t.folio,
-                                  'title': t.titulo,
-                                  'branch': t.sucursal,
-                                  'priority': _priorityText(t.priority).toUpperCase(),
-                                  'status': _statusText(t.status),
-                                  'createdAt': _fmtDate(t.fecha),
-                                  'isTechnician': false,
-                                  'category': 'Admin',
-                                  'description': 'Detalle pendiente de backend',
-                                  'evidences': <Map<String, dynamic>>[],
-                                  'comments': <Map<String, String>>[],
-                                });
+                                Navigator.pushNamed(
+                                  context,
+                                  '/ticket-detail',
+                                  arguments: {
+                                    'id': t.folio,
+                                    'title': t.titulo,
+                                    'branch': t.sucursal,
+                                    'priority': _priorityText(
+                                      t.priority,
+                                    ).toUpperCase(),
+                                    'status': _statusText(t.status),
+                                    'createdAt': _fmtDate(t.fecha),
+                                    'isTechnician': false,
+                                    'category': 'Admin',
+                                    'description':
+                                        'Detalle pendiente de backend',
+                                    'evidences': <Map<String, dynamic>>[],
+                                    'comments': <Map<String, String>>[],
+                                  },
+                                );
                               },
                               child: const Text('Ver'),
                             ),
@@ -623,7 +893,6 @@ class _AdminTicketsTableState extends State<_AdminTicketsTable> {
   }
 }
 
-
 /* ===================== CHIPS & HELPERS ===================== */
 
 class _PriorityChip extends StatelessWidget {
@@ -638,6 +907,8 @@ class _PriorityChip extends StatelessWidget {
       backgroundColor: c.withOpacity(0.15),
       labelStyle: TextStyle(color: c, fontWeight: FontWeight.w800),
       side: BorderSide(color: c),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
     );
   }
 }
@@ -654,6 +925,8 @@ class _SlaChip extends StatelessWidget {
       backgroundColor: c.withOpacity(0.15),
       labelStyle: TextStyle(color: c, fontWeight: FontWeight.w900),
       side: BorderSide(color: c),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
     );
   }
 }
