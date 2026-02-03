@@ -42,6 +42,7 @@ dependencies:
   printing: ^5.13.0
   dio: ^5.0.0
   flutter_secure_storage: ^9.0.0
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:
