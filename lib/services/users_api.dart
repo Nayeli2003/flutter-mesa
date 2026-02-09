@@ -1,15 +1,15 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'session.dart';
 
 class UsersApi {
-  final String baseUrl;
-  final String? token; // si usas Sanctum con token, aquí lo pones
+  final String baseUrl; // ejemplo: http://127.0.0.1:8000/api
 
-  UsersApi({required this.baseUrl, this.token});
+  UsersApi({required this.baseUrl});
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
+        if (Session.token != null) 'Authorization': 'Bearer ${Session.token}',
       };
 
   // LISTAR USUARIOS
@@ -21,8 +21,8 @@ class UsersApi {
     if (q != null && q.trim().isNotEmpty) params['q'] = q.trim();
 
     final uri = Uri.parse('$baseUrl/usuarios').replace(queryParameters: params);
-
     final res = await http.get(uri, headers: _headers);
+
     if (res.statusCode != 200) {
       throw Exception('Error al listar: ${res.statusCode} ${res.body}');
     }
@@ -71,7 +71,7 @@ class UsersApi {
     if (res.statusCode != 201) throw Exception(res.body);
   }
 
-  // CREAR SUCURSAL (crea sucursal + usuario)
+  // CREAR SUCURSAL
   Future<void> crearSucursal({
     required int idSucursal,
     required String nombreSucursal,

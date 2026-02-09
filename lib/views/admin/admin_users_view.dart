@@ -8,10 +8,10 @@ import '../../widgets/app_drawer.dart';
 // ====================== API (Laravel) ======================
 class UsersApi {
   final String baseUrl; // EJ: http://127.0.0.1:8000/api
-  final String? token; // si usas token, ponlo aquí
+  final String? token; // quitar esto que no funciona 
 
   UsersApi({required this.baseUrl, this.token});
-
+  
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
         if (token != null) 'Authorization': 'Bearer $token',
@@ -120,7 +120,7 @@ class AdminUserModel {
 
   // Solo si es sucursal
   int? branchId; // id_sucursal
-  String? sucursal; // nombre sucursal (si lo mandas)
+  String? sucursal; // nombre sucursal
 
   bool activo;
 
@@ -149,7 +149,7 @@ class AdminUserModel {
 
   factory AdminUserModel.fromJson(Map<String, dynamic> j) {
     return AdminUserModel(
-      id: (j['id'] as num).toInt(),
+      id: (j['id_usuario'] as num).toInt(), // -> id: (j['id'] as num).toInt(),
       nombre: (j['nombre'] ?? '').toString(),
       username: (j['username'] ?? '').toString(),
       rol: roleFromId((j['id_rol'] as num).toInt()),
@@ -192,11 +192,11 @@ class _AdminUsersViewState extends State<AdminUsersView>
     super.initState();
     _tab = TabController(length: 3, vsync: this);
 
-    //  CAMBIA TU URL AQUÍ:
+    //  Se cambia la url dependiendo de donde se va a ejecutar
     // - Flutter Web / Windows:  http://127.0.0.1:8000/api
     // - Android Emulator:      http://10.0.2.2:8000/api
     // - Celular físico:        http://IP_DE_TU_PC:8000/api
-    api = UsersApi(baseUrl: 'http://127.0.0.1:8000/api', token: null);
+    api = UsersApi(baseUrl: 'http://127.0.0.1:8000/api');
 
     _loadTabUsers();
     _tab.addListener(() {
