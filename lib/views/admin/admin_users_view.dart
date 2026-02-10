@@ -6,6 +6,39 @@ import 'package:http/http.dart' as http;
 import '../../widgets/app_drawer.dart';
 import 'package:mesa_sana/services/session.dart';
 
+const List<String> kSucursales = [
+  'Tezontepec',
+  'Tecámac centro',
+  'Tecámac la Principal',
+  'Tecámac Presidencia',
+  'CD Cuauhtemoc',
+  'Ojo de Agua',
+  'Ceda 512',
+  'Ceda 517',
+  'Jardines de Morelos 1',
+  'Nuevo Laredo',
+  'Via Morelos',
+  'San Cristobal',
+  'San Pablo',
+  'Izcalli',
+  'CD Azteca 1',
+  'Casas Aleman',
+  'Zacatengo',
+  'Centro Historico',
+  'Neza',
+  'Ceda E21',
+  'Cedis Oficina',
+  'Cedis Almacén',
+  'Granjas',
+  'Jardines de Morelos 2',
+  'Zumpango',
+  'Tecámac 4',
+  'Ceda San Vicente Chicoloapan',
+  'San Agustin',
+  'Coacalco',
+  'CD Azteca 2',
+];
+
 // ============================================================
 // ====================== API (Laravel) ========================
 // ============================================================
@@ -739,14 +772,68 @@ class _AdminUsersViewState extends State<AdminUsersView>
                         keyboardType: TextInputType.number,
                       ),
                       const SizedBox(height: 12),
-                      TextField(
-                        controller: sucursalCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Nombre de sucursal',
-                          prefixIcon: Icon(Icons.store),
-                          border: OutlineInputBorder(),
-                        ),
+                      Autocomplete<String>(
+                        initialValue: TextEditingValue(text: sucursalCtrl.text),
+                        optionsBuilder: (TextEditingValue value) {
+                          final q = value.text.trim().toLowerCase();
+                          if (q.isEmpty) return kSucursales;
+                          return kSucursales.where(
+                            (s) => s.toLowerCase().contains(q),
+                          );
+                        },
+                        onSelected: (String selection) {
+                          sucursalCtrl.text =
+                              selection; // guarda la sucursal elegida
+                        },
+                        fieldViewBuilder:
+                            (context, controller, focusNode, onFieldSubmitted) {
+                              // usamos el controller del autocomplete y lo sincronizamos con sucursalCtrl
+                              controller.text = sucursalCtrl.text;
+                              controller.selection = TextSelection.fromPosition(
+                                TextPosition(offset: controller.text.length),
+                              );
+
+                              return TextField(
+                                controller: controller,
+                                focusNode: focusNode,
+                                decoration: const InputDecoration(
+                                  labelText: 'Nombre de sucursal',
+                                  prefixIcon: Icon(Icons.store),
+                                  border: OutlineInputBorder(),
+                                ),
+                                onChanged: (v) =>
+                                    sucursalCtrl.text = v, //  sync
+                              );
+                            },
+                        optionsViewBuilder: (context, onSelected, options) {
+                          return Align(
+                            alignment: Alignment.topLeft,
+                            child: Material(
+                              elevation: 4,
+                              borderRadius: BorderRadius.circular(12),
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxHeight: 260,
+                                  maxWidth: 520,
+                                ),
+                                child: ListView.builder(
+                                  padding: const EdgeInsets.all(8),
+                                  itemCount: options.length,
+                                  itemBuilder: (context, index) {
+                                    final opt = options.elementAt(index);
+                                    return ListTile(
+                                      dense: true,
+                                      title: Text(opt),
+                                      onTap: () => onSelected(opt),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
+
                       const SizedBox(height: 12),
                       TextField(
                         controller: usernameCtrl,
