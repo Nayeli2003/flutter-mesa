@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-
-// el importar las vistas
+import 'services/session.dart'; 
+// vistas
 import 'views/login_view.dart';
 import 'views/admin/admin_dashboard_view.dart';
 import 'views/technician/technician_dashboard_view.dart';
@@ -13,9 +13,39 @@ import 'views/admin/admin_tickets_view.dart';
 import 'views/admin/admin_users_view.dart';
 import 'views/admin/admin_metrics_view.dart';
 
+void main() async {
+  // necesario para usar await antes de runApp
+  WidgetsFlutterBinding.ensureInitialized();
 
-void main() {
+  //carga token guardado (web/desktop)
+  await Session.load();
+
   runApp(const MyApp());
+}
+
+///Widget que protege rutas: si no hay token → manda a login
+class GuardedRoute extends StatelessWidget {
+  final Widget child;
+  const GuardedRoute({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    // si NO hay token, manda a login
+    if (Session.token == null) {
+      // pushReplacement después del build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacementNamed(context, '/login');
+      });
+
+      // mientras redirige, muestra loader
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // si hay token, deja pasar
+    return child;
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -27,7 +57,6 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Mesa de Ayuda',
 
-      // estilos de colores para sana sana
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFFF3F4F3),
@@ -45,34 +74,40 @@ class MyApp extends StatelessWidget {
         ),
       ),
 
-      // Rutas de las paginas
       initialRoute: '/login',
+
       routes: {
-        '/login': (context) => const LoginView(), //inicio de sesion
-        '/admin': (context) =>
-            const AdminDashboardView(), //vista de administrador
+        '/login': (context) => const LoginView(),
+
+        // protegemos todas las rutas que requieren sesión
+        '/admin': (context) => const GuardedRoute(child: AdminDashboardView()),
         '/technician': (context) =>
-            const TechnicianDashboardView(), //vista de tecnico
-        '/branch': (context) => const BranchHomeView(), //vista de sucursal
+            const GuardedRoute(child: TechnicianDashboardView()),
+        '/branch': (context) => const GuardedRoute(child: BranchHomeView()),
         '/create-ticket': (context) =>
-            const CreateTicketView(), //vista de creacion de ticket
+            const GuardedRoute(child: CreateTicketView()),
         '/ticket-detail': (context) =>
-            const TicketDetailView(), //vista de ticket detalles
-        '/help': (context) =>
-            const HelpView(), //vista de ayuda por parte de sucursal
-        '/tech-inprogress': (_) => const TechnicianTicketsView(
-          title: 'En proceso',
-          statusFilter: TicketStatus.enProceso,
-        ),
-        '/tech-closed': (_) => const TechnicianTicketsView(
-          title: 'Cerrados',
-          statusFilter: TicketStatus.cerrado,
-        ),
-        '/admin-tickets': (_) => const AdminTicketsView(),//Tickets de administrador
-        '/admin-users': (_) => const AdminUsersView(),// vista de usuarios
-        '/admin-metrics': (_) => const AdminMetricsView(),//Vista de metricas
+            const GuardedRoute(child: TicketDetailView()),
+        '/help': (context) => const GuardedRoute(child: HelpView()),
 
+        '/tech-inprogress': (_) => const GuardedRoute(
+              child: TechnicianTicketsView(
+                title: 'En proceso',
+                statusFilter: TicketStatus.enProceso,
+              ),
+            ),
+        '/tech-closed': (_) => const GuardedRoute(
+              child: TechnicianTicketsView(
+                title: 'Cerrados',
+                statusFilter: TicketStatus.cerrado,
+              ),
+            ),
 
+        '/admin-tickets': (_) =>
+            const GuardedRoute(child: AdminTicketsView()),//vista ded tickets
+        '/admin-users': (_) => const GuardedRoute(child: AdminUsersView()),//vista de administrador de usuarios
+        '/admin-metrics': (_) =>
+            const GuardedRoute(child: AdminMetricsView()),//metricas que puede ver el administrador
       },
     );
   }

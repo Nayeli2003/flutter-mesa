@@ -1,40 +1,104 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'session.dart';
+import 'session.dart'; 
 
-class AuthApi {
-  final String baseUrl; // http://127.0.0.1:8000/api
-  AuthApi({required this.baseUrl});
+class UsersApi {
+  final String baseUrl; // EJ: http://127.0.0.1:8000/api
 
-  Future<void> login({
-    required String username,
-    required String password,
-  }) async {
-    final uri = Uri.parse('$baseUrl/login');
+  UsersApi({required this.baseUrl});
 
-    final res = await http.post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'username': username, 'password': password}),
-    );
+  Map<String, String> get _headers => {
+        'Content-Type': 'application/json',
+        if (Session.token != null) 'Authorization': 'Bearer ${Session.token}',
+      };
+
+  Future<List<dynamic>> list({int? idRol, bool? activo, String? q}) async {
+    final params = <String, String>{};
+
+    if (idRol != null) params['id_rol'] = '$idRol';
+    if (activo != null) params['activo'] = activo ? '1' : '0';
+    if (q != null && q.trim().isNotEmpty) params['q'] = q.trim();
+
+    final uri = Uri.parse('$baseUrl/usuarios').replace(queryParameters: params);
+    final res = await http.get(uri, headers: _headers);
 
     if (res.statusCode != 200) {
-      throw Exception('Login falló: ${res.statusCode} ${res.body}');
+      throw Exception('Error al listar: ${res.statusCode} ${res.body}');
     }
-
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
-
-  
-    final token = data['token']?.toString();
-
-    if (token == null || token.isEmpty) {
-      throw Exception('No llegó token en la respuesta: ${res.body}');
-    }
-
-    Session.token = token; //  guardado
+    return jsonDecode(res.body) as List<dynamic>;
   }
 
-  void logout() {
-    Session.token = null;
+  Future<void> crearAdmin({
+    required String nombre,
+    required String username,
+    required String password,
+    required bool activo,
+  }) async {
+    final uri = Uri.parse('$baseUrl/usuarios/admin');
+    final res = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({
+        'nombre': nombre,
+        'username': username,
+        'password': password,
+        'activo': activo,
+      }),
+    );
+    if (res.statusCode != 201) throw Exception(res.body);
+  }
+
+  Future<void> crearTecnico({
+    required String nombre,
+    required String username,
+    required String password,
+    required bool activo,
+  }) async {
+    final uri = Uri.parse('$baseUrl/usuarios/tecnico');
+    final res = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({
+        'nombre': nombre,
+        'username': username,
+        'password': password,
+        'activo': activo,
+      }),
+    );
+    if (res.statusCode != 201) throw Exception(res.body);
+  }
+
+  Future<void> crearSucursal({
+    required int idSucursal,
+    required String nombreSucursal,
+    required String username,
+    required String password,
+    required bool activo,
+  }) async {
+    final uri = Uri.parse('$baseUrl/usuarios/sucursal');
+    final res = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({
+        'id_sucursal': idSucursal,
+        'nombre': nombreSucursal,
+        'username': username,
+        'password': password,
+        'activo': activo,
+      }),
+    );
+    if (res.statusCode != 201) throw Exception(res.body);
+  }
+
+  Future<void> toggleEstado(int idUsuario) async {
+    final uri = Uri.parse('$baseUrl/usuarios/$idUsuario/estado');
+    final res = await http.patch(uri, headers: _headers);
+    if (res.statusCode != 200) throw Exception(res.body);
+  }
+
+  Future<void> eliminar(int idUsuario) async {
+    final uri = Uri.parse('$baseUrl/usuarios/$idUsuario');
+    final res = await http.delete(uri, headers: _headers);
+    if (res.statusCode != 200) throw Exception(res.body);
   }
 }

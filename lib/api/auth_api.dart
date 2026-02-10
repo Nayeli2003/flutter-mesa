@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:mesa_sana/services/session.dart';
@@ -29,24 +28,36 @@ class AuthApi {
 
     final data = jsonDecode(res.body);
 
-    // ✅ Ajusta estos keys a lo que mande tu backend
-    // Normalmente: { token: "...", user: {...} }
+    // token
     final token = data['token']?.toString();
     if (token == null || token.isEmpty) {
       throw Exception('El backend no devolvió token. Respuesta: ${res.body}');
     }
 
+    // guarda token en memoria
     Session.token = token;
 
-    // si tu backend manda user
-    final user = data['user'];
+    // user (tu backend manda "user")
+    final user = data['user'] ?? data['usuario'];
+
+    // helper: convierte cualquier valor a int (sirve si llega int o string)
+    int? toInt(dynamic v) {
+      if (v == null) return null;
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      return int.tryParse(v.toString());
+    }
+
     if (user != null) {
-      Session.idUsuario = user['id_usuario'] ?? user['id'] ;
-      Session.idRol = user['id_rol'];
-      Session.idSucursal = user['id_sucursal'];
+      Session.idUsuario = toInt(user['id_usuario'] ?? user['id']);
+      Session.idRol = toInt(user['id_rol']);
+      Session.idSucursal = toInt(user['id_sucursal']);
       Session.username = user['username']?.toString();
       Session.nombre = user['nombre']?.toString();
     }
+
+    // AHORA sí: guarda todo (token + ids + username + nombre)
+    await Session.save();
   }
 
   Future<void> logout() async {
@@ -61,8 +72,8 @@ class AuthApi {
       },
     );
 
-    // aunque falle, limpiamos sesión
-    Session.clear();
+    //  limpia sesión aunque falle
+    await Session.clear();
 
     if (res.statusCode != 200) {
       throw Exception('Logout falló: ${res.statusCode} ${res.body}');

@@ -4,19 +4,34 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../../widgets/app_drawer.dart';
+import 'package:mesa_sana/services/session.dart';
 
-// ====================== API (Laravel) ======================
+// ============================================================
+// ====================== API (Laravel) ========================
+// ============================================================
+//
+// CAMBIOS CLAVE:
+// - Se quito "token" local (porque en la initState nunca se pasasba)
+// - Ahora SIEMPRE usamos Session.token (que se guarda al hacer login)
+//
+// Así, cualquier request a /api/usuarios manda Authorization: Bearer TOKEN
+//
 class UsersApi {
   final String baseUrl; // EJ: http://127.0.0.1:8000/api
-  final String? token; // quitar esto que no funciona 
 
-  UsersApi({required this.baseUrl, this.token});
-  
+  UsersApi({required this.baseUrl});
+
+  // Headers generales para requests
+  // Si hay token, se añade Authorization
   Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
-      };
+    'Content-Type': 'application/json',
+    if (Session.token != null) 'Authorization': 'Bearer ${Session.token}',
+  };
 
+  // LISTAR USUARIOS con filtros:
+  // - idRol: 1 admin, 2 tecnico, 3 sucursal
+  // - activo: true/false/null
+  // - q: search
   Future<List<dynamic>> list({int? idRol, bool? activo, String? q}) async {
     final params = <String, String>{};
 
@@ -25,14 +40,19 @@ class UsersApi {
     if (q != null && q.trim().isNotEmpty) params['q'] = q.trim();
 
     final uri = Uri.parse('$baseUrl/usuarios').replace(queryParameters: params);
+
+    // request GET con token si existe
     final res = await http.get(uri, headers: _headers);
 
+    // Si no es 200, lanzamos error con status + body
     if (res.statusCode != 200) {
       throw Exception('Error al listar: ${res.statusCode} ${res.body}');
     }
+
     return jsonDecode(res.body) as List<dynamic>;
   }
 
+  // CREAR ADMIN
   Future<void> crearAdmin({
     required String nombre,
     required String username,
@@ -50,9 +70,12 @@ class UsersApi {
         'activo': activo,
       }),
     );
+
+    // En el backend responde 201 al crear
     if (res.statusCode != 201) throw Exception(res.body);
   }
 
+  // CREAR TECNICO
   Future<void> crearTecnico({
     required String nombre,
     required String username,
@@ -70,9 +93,11 @@ class UsersApi {
         'activo': activo,
       }),
     );
+
     if (res.statusCode != 201) throw Exception(res.body);
   }
 
+  // CREAR SUCURSAL
   Future<void> crearSucursal({
     required int idSucursal,
     required String nombreSucursal,
@@ -86,33 +111,41 @@ class UsersApi {
       headers: _headers,
       body: jsonEncode({
         'id_sucursal': idSucursal,
-        'nombre': nombreSucursal,
+        'nombre_sucursal': nombreSucursal,
         'username': username,
         'password': password,
         'activo': activo,
       }),
     );
+
     if (res.statusCode != 201) throw Exception(res.body);
   }
 
+  // TOGGLE (activar/desactivar)
   Future<void> toggleEstado(int idUsuario) async {
     final uri = Uri.parse('$baseUrl/usuarios/$idUsuario/estado');
     final res = await http.patch(uri, headers: _headers);
+
     if (res.statusCode != 200) throw Exception(res.body);
   }
 
+  // ELIMINAR
   Future<void> eliminar(int idUsuario) async {
     final uri = Uri.parse('$baseUrl/usuarios/$idUsuario');
     final res = await http.delete(uri, headers: _headers);
+
     if (res.statusCode != 200) throw Exception(res.body);
   }
 }
 
-// ====================== MODELO UI ======================
+// ============================================================
+// ====================== MODELO UI ===========================
+// ============================================================
+
 enum AdminUserRole { admin, tecnico, sucursal }
 
 class AdminUserModel {
-  final int id; // id real de BD
+  final int id; // id real de BD (id_usuario)
   String nombre;
   String username;
 
@@ -120,7 +153,7 @@ class AdminUserModel {
 
   // Solo si es sucursal
   int? branchId; // id_sucursal
-  String? sucursal; // nombre sucursal
+  String? sucursal; // nombre sucursal (si se manda)
 
   bool activo;
 
@@ -149,18 +182,23 @@ class AdminUserModel {
 
   factory AdminUserModel.fromJson(Map<String, dynamic> j) {
     return AdminUserModel(
-      id: (j['id_usuario'] as num).toInt(), // -> id: (j['id'] as num).toInt(),
+      id: (j['id_usuario'] as num).toInt(), //  PK real
       nombre: (j['nombre'] ?? '').toString(),
       username: (j['username'] ?? '').toString(),
       rol: roleFromId((j['id_rol'] as num).toInt()),
-      branchId: j['id_sucursal'] == null ? null : (j['id_sucursal'] as num).toInt(),
-      sucursal: j['sucursal_nombre']?.toString(), // opcional si lo mandas
+      branchId: j['id_sucursal'] == null
+          ? null
+          : (j['id_sucursal'] as num).toInt(),
+      sucursal: j['sucursal_nombre']?.toString(),
       activo: j['activo'] == true || j['activo'] == 1,
     );
   }
 }
 
-// ====================== VIEW ======================
+// ============================================================
+// ====================== VIEW ================================
+// ============================================================
+
 class AdminUsersView extends StatefulWidget {
   const AdminUsersView({super.key});
 
@@ -181,7 +219,6 @@ class _AdminUsersViewState extends State<AdminUsersView>
   bool? _activeTech;
   bool? _activeBranch;
 
-  // ahora vienen del backend
   List<AdminUserModel> _users = [];
   bool _loading = false;
 
@@ -192,13 +229,13 @@ class _AdminUsersViewState extends State<AdminUsersView>
     super.initState();
     _tab = TabController(length: 3, vsync: this);
 
-    //  Se cambia la url dependiendo de donde se va a ejecutar
-    // - Flutter Web / Windows:  http://127.0.0.1:8000/api
-    // - Android Emulator:      http://10.0.2.2:8000/api
-    // - Celular físico:        http://IP_DE_TU_PC:8000/api
+    //  Se cambia URL dependiendo del dispositivo
     api = UsersApi(baseUrl: 'http://127.0.0.1:8000/api');
 
+    // Carga inicial
     _loadTabUsers();
+
+    // Cada vez que cambias tab, recarga
     _tab.addListener(() {
       if (!_tab.indexIsChanging) _loadTabUsers();
     });
@@ -213,34 +250,55 @@ class _AdminUsersViewState extends State<AdminUsersView>
     super.dispose();
   }
 
+  // ==========================================================
+  // CARGA DE USUARIOS SEGÚN TAB + FILTROS
+  // ==========================================================
   Future<void> _loadTabUsers() async {
     setState(() => _loading = true);
+
     try {
+      // debug para confirmar que sí hay token
+      debugPrint('TOKEN actual: ${Session.token}');
+
       final idx = _tab.index;
-      final idRol = idx == 0 ? 1 : idx == 1 ? 2 : 3;
+      final idRol = idx == 0
+          ? 1
+          : idx == 1
+          ? 2
+          : 3;
 
       final q = idx == 0
           ? _searchAdminCtrl.text
           : idx == 1
-              ? _searchTechCtrl.text
-              : _searchBranchCtrl.text;
+          ? _searchTechCtrl.text
+          : _searchBranchCtrl.text;
 
-      final activo = idx == 0 ? _activeAdmin : idx == 1 ? _activeTech : _activeBranch;
+      final activo = idx == 0
+          ? _activeAdmin
+          : idx == 1
+          ? _activeTech
+          : _activeBranch;
 
       final data = await api.list(idRol: idRol, activo: activo, q: q);
+
       setState(() {
-        _users = data.map((e) => AdminUserModel.fromJson(e as Map<String, dynamic>)).toList();
+        _users = data
+            .map((e) => AdminUserModel.fromJson(e as Map<String, dynamic>))
+            .toList();
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al cargar usuarios: $e')),
-      );
+      // Muestra el error real
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error al cargar usuarios: $e')));
     } finally {
       setState(() => _loading = false);
     }
   }
 
-  // eliminar (solo inactivos)
+  // ==========================================================
+  // ELIMINAR (solo inactivos)
+  // ==========================================================
   Future<void> _deleteUser(AdminUserModel user) async {
     if (user.activo) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -276,17 +334,20 @@ class _AdminUsersViewState extends State<AdminUsersView>
       try {
         await api.eliminar(user.id);
         await _loadTabUsers();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Usuario eliminado')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Usuario eliminado')));
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al eliminar: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al eliminar: $e')));
       }
     }
   }
 
+  // ==========================================================
+  // Helpers UI
+  // ==========================================================
   String _roleText(AdminUserRole r) {
     switch (r) {
       case AdminUserRole.admin:
@@ -344,13 +405,18 @@ class _AdminUsersViewState extends State<AdminUsersView>
     _loadTabUsers();
   }
 
+  // Los 3 métodos:
   // ===== MODAL ADMIN =====
   Future<void> _openAdminModal({AdminUserModel? user}) async {
     final isEdit = user != null;
 
     final nombreCtrl = TextEditingController(text: isEdit ? user!.nombre : '');
-    final usernameCtrl = TextEditingController(text: isEdit ? user!.username : '');
-    final passwordCtrl = TextEditingController(text: ''); // nunca prellenar password
+    final usernameCtrl = TextEditingController(
+      text: isEdit ? user!.username : '',
+    );
+    final passwordCtrl = TextEditingController(
+      text: '',
+    ); // nunca prellenar password
     bool activo = isEdit ? user!.activo : true;
 
     bool showPass = false;
@@ -361,7 +427,9 @@ class _AdminUsersViewState extends State<AdminUsersView>
         return StatefulBuilder(
           builder: (context, setLocal) {
             return AlertDialog(
-              title: Text(isEdit ? 'Editar administrador' : 'Agregar administrador'),
+              title: Text(
+                isEdit ? 'Editar administrador' : 'Agregar administrador',
+              ),
               content: SizedBox(
                 width: 520,
                 child: SingleChildScrollView(
@@ -390,12 +458,19 @@ class _AdminUsersViewState extends State<AdminUsersView>
                         controller: passwordCtrl,
                         obscureText: !showPass,
                         decoration: InputDecoration(
-                          labelText: isEdit ? 'Nueva contraseña (opcional)' : 'Contraseña',
+                          labelText: isEdit
+                              ? 'Nueva contraseña (opcional)'
+                              : 'Contraseña',
                           prefixIcon: const Icon(Icons.lock),
                           border: const OutlineInputBorder(),
                           suffixIcon: IconButton(
-                            onPressed: () => setLocal(() => showPass = !showPass),
-                            icon: Icon(showPass ? Icons.visibility_off : Icons.visibility),
+                            onPressed: () =>
+                                setLocal(() => showPass = !showPass),
+                            icon: Icon(
+                              showPass
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
                           ),
                         ),
                       ),
@@ -422,7 +497,9 @@ class _AdminUsersViewState extends State<AdminUsersView>
 
                     if (nombre.isEmpty || username.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Nombre y usuario son obligatorios.')),
+                        const SnackBar(
+                          content: Text('Nombre y usuario son obligatorios.'),
+                        ),
                       );
                       return;
                     }
@@ -431,7 +508,9 @@ class _AdminUsersViewState extends State<AdminUsersView>
                       if (!isEdit) {
                         if (pass.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('La contraseña es obligatoria.')),
+                            const SnackBar(
+                              content: Text('La contraseña es obligatoria.'),
+                            ),
                           );
                           return;
                         }
@@ -442,20 +521,24 @@ class _AdminUsersViewState extends State<AdminUsersView>
                           activo: activo,
                         );
                       } else {
-                        // Si quieres editar en backend, necesitas endpoint PUT /usuarios/{id}
+                        // Si se quiere editar en backend, necesitas endpoint PUT /usuarios/{id}
                         // Por ahora: solo recarga (o implementamos update después).
                         // Te dejo listo el flujo para cuando tengas update.
                         // await api.updateUser(...);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Edición backend: falta endpoint PUT /usuarios/{id}')),
+                          const SnackBar(
+                            content: Text(
+                              'Edición backend: falta endpoint PUT /usuarios/{id}',
+                            ),
+                          ),
                         );
                       }
 
                       Navigator.pop(context, true);
                     } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: $e')),
-                      );
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text('Error: $e')));
                     }
                   },
                   child: Text(isEdit ? 'Guardar' : 'Agregar'),
@@ -478,7 +561,9 @@ class _AdminUsersViewState extends State<AdminUsersView>
     final isEdit = user != null;
 
     final nombreCtrl = TextEditingController(text: isEdit ? user!.nombre : '');
-    final usernameCtrl = TextEditingController(text: isEdit ? user!.username : '');
+    final usernameCtrl = TextEditingController(
+      text: isEdit ? user!.username : '',
+    );
     final passwordCtrl = TextEditingController(text: '');
     bool activo = isEdit ? user!.activo : true;
 
@@ -519,12 +604,19 @@ class _AdminUsersViewState extends State<AdminUsersView>
                         controller: passwordCtrl,
                         obscureText: !showPass,
                         decoration: InputDecoration(
-                          labelText: isEdit ? 'Nueva contraseña (opcional)' : 'Contraseña',
+                          labelText: isEdit
+                              ? 'Nueva contraseña (opcional)'
+                              : 'Contraseña',
                           prefixIcon: const Icon(Icons.lock),
                           border: const OutlineInputBorder(),
                           suffixIcon: IconButton(
-                            onPressed: () => setLocal(() => showPass = !showPass),
-                            icon: Icon(showPass ? Icons.visibility_off : Icons.visibility),
+                            onPressed: () =>
+                                setLocal(() => showPass = !showPass),
+                            icon: Icon(
+                              showPass
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
                           ),
                         ),
                       ),
@@ -551,7 +643,9 @@ class _AdminUsersViewState extends State<AdminUsersView>
 
                     if (nombre.isEmpty || username.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Nombre y usuario son obligatorios.')),
+                        const SnackBar(
+                          content: Text('Nombre y usuario son obligatorios.'),
+                        ),
                       );
                       return;
                     }
@@ -560,7 +654,9 @@ class _AdminUsersViewState extends State<AdminUsersView>
                       if (!isEdit) {
                         if (pass.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('La contraseña es obligatoria.')),
+                            const SnackBar(
+                              content: Text('La contraseña es obligatoria.'),
+                            ),
                           );
                           return;
                         }
@@ -572,15 +668,19 @@ class _AdminUsersViewState extends State<AdminUsersView>
                         );
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Edición backend: falta endpoint PUT /usuarios/{id}')),
+                          const SnackBar(
+                            content: Text(
+                              'Edición backend: falta endpoint PUT /usuarios/{id}',
+                            ),
+                          ),
                         );
                       }
 
                       Navigator.pop(context, true);
                     } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: $e')),
-                      );
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text('Error: $e')));
                     }
                   },
                   child: Text(isEdit ? 'Guardar' : 'Agregar'),
@@ -602,9 +702,15 @@ class _AdminUsersViewState extends State<AdminUsersView>
   Future<void> _openBranchModal({AdminUserModel? user}) async {
     final isEdit = user != null;
 
-    final branchIdCtrl = TextEditingController(text: isEdit ? (user!.branchId?.toString() ?? '') : '');
-    final sucursalCtrl = TextEditingController(text: isEdit ? (user!.nombre) : '');
-    final usernameCtrl = TextEditingController(text: isEdit ? user!.username : '');
+    final branchIdCtrl = TextEditingController(
+      text: isEdit ? (user!.branchId?.toString() ?? '') : '',
+    );
+    final sucursalCtrl = TextEditingController(
+      text: isEdit ? (user!.nombre) : '',
+    );
+    final usernameCtrl = TextEditingController(
+      text: isEdit ? user!.username : '',
+    );
     final passwordCtrl = TextEditingController(text: '');
     bool activo = isEdit ? user!.activo : true;
 
@@ -655,12 +761,19 @@ class _AdminUsersViewState extends State<AdminUsersView>
                         controller: passwordCtrl,
                         obscureText: !showPass,
                         decoration: InputDecoration(
-                          labelText: isEdit ? 'Nueva contraseña (opcional)' : 'Contraseña',
+                          labelText: isEdit
+                              ? 'Nueva contraseña (opcional)'
+                              : 'Contraseña',
                           prefixIcon: const Icon(Icons.lock),
                           border: const OutlineInputBorder(),
                           suffixIcon: IconButton(
-                            onPressed: () => setLocal(() => showPass = !showPass),
-                            icon: Icon(showPass ? Icons.visibility_off : Icons.visibility),
+                            onPressed: () =>
+                                setLocal(() => showPass = !showPass),
+                            icon: Icon(
+                              showPass
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
                           ),
                         ),
                       ),
@@ -688,7 +801,11 @@ class _AdminUsersViewState extends State<AdminUsersView>
 
                     if (bidTxt.isEmpty || suc.isEmpty || username.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('ID sucursal, nombre y usuario son obligatorios.')),
+                        const SnackBar(
+                          content: Text(
+                            'ID sucursal, nombre y usuario son obligatorios.',
+                          ),
+                        ),
                       );
                       return;
                     }
@@ -696,7 +813,9 @@ class _AdminUsersViewState extends State<AdminUsersView>
                     final bid = int.tryParse(bidTxt);
                     if (bid == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('ID Sucursal debe ser número.')),
+                        const SnackBar(
+                          content: Text('ID Sucursal debe ser número.'),
+                        ),
                       );
                       return;
                     }
@@ -705,7 +824,9 @@ class _AdminUsersViewState extends State<AdminUsersView>
                       if (!isEdit) {
                         if (pass.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('La contraseña es obligatoria.')),
+                            const SnackBar(
+                              content: Text('La contraseña es obligatoria.'),
+                            ),
                           );
                           return;
                         }
@@ -719,15 +840,19 @@ class _AdminUsersViewState extends State<AdminUsersView>
                         );
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Edición backend: falta endpoint PUT /usuarios/{id}')),
+                          const SnackBar(
+                            content: Text(
+                              'Edición backend: falta endpoint PUT /usuarios/{id}',
+                            ),
+                          ),
                         );
                       }
 
                       Navigator.pop(context, true);
                     } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: $e')),
-                      );
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text('Error: $e')));
                     }
                   },
                   child: Text(isEdit ? 'Guardar' : 'Agregar'),
@@ -747,7 +872,6 @@ class _AdminUsersViewState extends State<AdminUsersView>
 
   @override
   Widget build(BuildContext context) {
-    // Mientras carga
     if (_loading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Usuarios')),
@@ -761,8 +885,12 @@ class _AdminUsersViewState extends State<AdminUsersView>
     }
 
     final admins = _users.where((u) => u.rol == AdminUserRole.admin).toList();
-    final technicians = _users.where((u) => u.rol == AdminUserRole.tecnico).toList();
-    final branches = _users.where((u) => u.rol == AdminUserRole.sucursal).toList();
+    final technicians = _users
+        .where((u) => u.rol == AdminUserRole.tecnico)
+        .toList();
+    final branches = _users
+        .where((u) => u.rol == AdminUserRole.sucursal)
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -784,8 +912,8 @@ class _AdminUsersViewState extends State<AdminUsersView>
                 tooltip: idx == 0
                     ? 'Agregar admin'
                     : idx == 1
-                        ? 'Agregar técnico'
-                        : 'Agregar sucursal',
+                    ? 'Agregar técnico'
+                    : 'Agregar sucursal',
                 onPressed: () {
                   if (idx == 0) _openAdminModal();
                   if (idx == 1) _openTechModal();
@@ -795,8 +923,8 @@ class _AdminUsersViewState extends State<AdminUsersView>
                   idx == 0
                       ? Icons.person_add_alt_1
                       : idx == 1
-                          ? Icons.person_add_alt_1
-                          : Icons.add_business,
+                      ? Icons.person_add_alt_1
+                      : Icons.add_business,
                 ),
               );
             },
@@ -975,7 +1103,9 @@ class _AdminUsersViewState extends State<AdminUsersView>
   }
 }
 
-/* ===================== FILTER BAR (TAB) ===================== */
+// ============================================================
+// =================== COMPONENTES  ===========================
+// ============================================================
 
 class _TabFiltersBar extends StatelessWidget {
   final TextEditingController searchCtrl;
@@ -1076,7 +1206,7 @@ class _TabFiltersBar extends StatelessWidget {
   }
 }
 
-/* ===================== MOBILE: CARDS ===================== */
+// ===================== MOBILE: CARDS =====================
 
 class _UsersCards extends StatelessWidget {
   final List<AdminUserModel> users;
@@ -1154,7 +1284,7 @@ class _UsersCards extends StatelessWidget {
   }
 }
 
-/* ===================== WEB/DESKTOP: TABLE ===================== */
+// ===================== WEB/DESKTOP: TABLE =====================
 
 class _UsersTable extends StatefulWidget {
   final List<AdminUserModel> users;
@@ -1249,7 +1379,11 @@ class _UsersTableState extends State<_UsersTable> {
                           DataCell(
                             Row(
                               children: [
-                                Icon(widget.roleIcon(u.rol), size: 16, color: c),
+                                Icon(
+                                  widget.roleIcon(u.rol),
+                                  size: 16,
+                                  color: c,
+                                ),
                                 const SizedBox(width: 6),
                                 Text(widget.roleText(u.rol)),
                               ],
@@ -1270,14 +1404,19 @@ class _UsersTableState extends State<_UsersTable> {
                                   onPressed: () => widget.onToggleActive(u),
                                   icon: Icon(
                                     u.activo ? Icons.block : Icons.check_circle,
-                                    color: u.activo ? Colors.orange : Colors.green,
+                                    color: u.activo
+                                        ? Colors.orange
+                                        : Colors.green,
                                   ),
                                 ),
                                 if (!u.activo)
                                   IconButton(
                                     tooltip: 'Eliminar',
                                     onPressed: () => widget.onDelete(u),
-                                    icon: const Icon(Icons.delete, color: Colors.red),
+                                    icon: const Icon(
+                                      Icons.delete,
+                                      color: Colors.red,
+                                    ),
                                   ),
                               ],
                             ),

@@ -8,9 +8,9 @@ class UsersApi {
   UsersApi({required this.baseUrl});
 
   Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        if (Session.token != null) 'Authorization': 'Bearer ${Session.token}',
-      };
+    'Content-Type': 'application/json',
+    if (Session.token != null) 'Authorization': 'Bearer ${Session.token}',
+  };
 
   // LISTAR USUARIOS
   Future<List<dynamic>> list({int? idRol, bool? activo, String? q}) async {
