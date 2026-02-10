@@ -2,41 +2,41 @@ import 'dart:convert';
 import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
 import '../../widgets/app_drawer.dart';
 import 'package:mesa_sana/services/session.dart';
 
 const List<String> kSucursales = [
-  'Tezontepec',
-  'Tecámac centro',
-  'Tecámac la Principal',
-  'Tecámac Presidencia',
-  'CD Cuauhtemoc',
-  'Ojo de Agua',
-  'Ceda 512',
-  'Ceda 517',
-  'Jardines de Morelos 1',
-  'Nuevo Laredo',
-  'Via Morelos',
-  'San Cristobal',
-  'San Pablo',
-  'Izcalli',
-  'CD Azteca 1',
-  'Casas Aleman',
-  'Zacatenco',
-  'Centro Historico',
-  'Neza',
-  'Ceda E21',
-  'Cedis Oficina',
-  'Cedis Almacén',
-  'Granjas',
-  'Jardines de Morelos 2',
-  'Zumpango',
-  'Tecámac 4',
-  'Ceda San Vicente Chicoloapan',
-  'San Agustin',
-  'Coacalco',
-  'CD Azteca 2',
+'Casas Aleman',
+'CD Azteca 1',
+'CD Azteca 2',
+'CD Cuauhtemoc',
+'Ceda 512',
+'Ceda 517',
+'Ceda E21',
+'Ceda San Vicente Chicoloapan',
+'Cedis Almacén',
+'Cedis Oficina',
+'Centro Historico',
+'Coacalco',
+'Granjas',
+'Izcalli',
+'Jardines de Morelos 1',
+'Jardines de Morelos 2',
+'Neza',
+'Nuevo Laredo',
+'Ojo de Agua',
+'San Agustin',
+'San Cristobal',
+'San Pablo',
+'Tecámac 4',
+'Tecámac centro',
+'Tecámac la Principal',
+'Tecámac Presidencia',
+'Tezontepec',
+'Via Morelos',
+'Zacatenco',
+'Zumpango'
+
 ];
 
 // ============================================================
