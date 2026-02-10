@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:mesa_sana/services/session.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -13,14 +14,18 @@ class _LoginViewState extends State<LoginView> {
   final _userController = TextEditingController();
   final _passController = TextEditingController();
 
+  // almacenamiento seguro (android/ios más útil)
   final _storage = const FlutterSecureStorage();
 
   bool _loading = false;
   String? _error;
+  bool _showPassword = false;
 
-  bool _showPassword = false; //
-
-  // Para Android emulator usa 10.0.2.2
+  // Base URL:
+  // Web/Windows/Mac: http://127.0.0.1:8000/api
+  // Android Emulator: http://10.0.2.2:8000/api
+  // Celular físico: http://IP_DE_TU_PC:8000/api
+  // Se debe cambiar cuando se suba a un servidor.
   final Dio _dio = Dio(BaseOptions(
     baseUrl: 'http://127.0.0.1:8000/api',
     headers: {'Accept': 'application/json'},
@@ -28,20 +33,23 @@ class _LoginViewState extends State<LoginView> {
     receiveTimeout: const Duration(seconds: 10),
   ));
 
+  // ============================================================
+  // Extrae rol de diferentes formatos
+  // (aunque tu backend ya manda "rol" como string)
+  // ============================================================
   String _extractRol(dynamic user) {
-    // Soporta varias formas:
-    // 1) user['rol'] = 'admin'
-    // 2) user['rol'] = { nombre_rol: 'admin' }
-    // 3) user['nombre_rol'] = 'admin'
     final rolField = (user is Map<String, dynamic>) ? user['rol'] : null;
 
+    // Caso 1: rol = "admin"
     if (rolField is String) return rolField.toLowerCase().trim();
 
+    // Caso 2: rol = { nombre_rol: "admin" }
     if (rolField is Map) {
       final nombre = rolField['nombre_rol']?.toString() ?? '';
       return nombre.toLowerCase().trim();
     }
 
+    // Caso 3: nombre_rol directo
     final nombreRol = (user is Map<String, dynamic>)
         ? (user['nombre_rol']?.toString() ?? '')
         : '';
@@ -49,6 +57,9 @@ class _LoginViewState extends State<LoginView> {
     return nombreRol.toLowerCase().trim();
   }
 
+  // ============================================================
+  // LOGIN
+  // ============================================================
   Future<void> _login() async {
     setState(() {
       _loading = true;
@@ -67,11 +78,13 @@ class _LoginViewState extends State<LoginView> {
     }
 
     try {
+      //Petición a Laravel: POST /api/login
       final res = await _dio.post('/login', data: {
         'username': username,
         'password': password,
       });
 
+      // Laravel regresa: { token: "...", user: {...} }
       final token = res.data['token']?.toString();
       final user = res.data['user'];
 
@@ -79,6 +92,7 @@ class _LoginViewState extends State<LoginView> {
         setState(() => _error = 'No se recibió token del servidor');
         return;
       }
+
       if (user is! Map<String, dynamic>) {
         setState(() => _error = 'Respuesta inválida del servidor (user)');
         return;
@@ -86,7 +100,23 @@ class _LoginViewState extends State<LoginView> {
 
       final rol = _extractRol(user);
 
-      //  Guarda token y datos básicos
+      // ============================================================
+      // PARTE CLAVE DEL ARREGLO:
+      // Guardar token y datos también en Session (memoria global)
+      // para que AdminUsersView/UsersApi lo usen
+      // ============================================================
+      Session.token = token;
+      Session.idUsuario = int.tryParse(user['id_usuario']?.toString() ?? '');
+      Session.idRol = int.tryParse(user['id_rol']?.toString() ?? '');
+      Session.idSucursal = int.tryParse(user['id_sucursal']?.toString() ?? '');
+      Session.username = user['username']?.toString();
+      Session.nombre = user['nombre']?.toString();
+
+      // ============================================================
+      // (Opcional) Guardar en SecureStorage 
+      // Esto te sirve en móvil.
+      // En web puede requerir config extra.
+      // ============================================================
       await _storage.write(key: 'token', value: token);
       await _storage.write(key: 'rol', value: rol);
 
@@ -100,12 +130,15 @@ class _LoginViewState extends State<LoginView> {
         await _storage.write(key: 'id_sucursal', value: idSucursal);
       }
 
-      //  (Recomendado) setear token en Dio para siguientes requests
+      // (Recomendado) Setear Authorization en Dio (para requests con Dio)
       _dio.options.headers['Authorization'] = 'Bearer $token';
 
       if (!mounted) return;
 
-      //  Navegación por rol
+      // ============================================================
+      // NAVEGACIÓN POR ROL
+      // Tu backend manda rol como: admin / tecnico / sucursal
+      // ============================================================
       if (rol == 'admin') {
         Navigator.pushReplacementNamed(context, '/admin');
       } else if (rol == 'tecnico') {
@@ -118,6 +151,7 @@ class _LoginViewState extends State<LoginView> {
     } on DioException catch (e) {
       // Mensaje de error más confiable
       String msg = 'Error al iniciar sesión';
+
       final data = e.response?.data;
       if (data is Map<String, dynamic>) {
         msg = data['message']?.toString() ?? msg;
@@ -138,6 +172,9 @@ class _LoginViewState extends State<LoginView> {
     super.dispose();
   }
 
+  // ============================================================
+  // UI
+  // ============================================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -197,10 +234,14 @@ class _LoginViewState extends State<LoginView> {
                   decoration: InputDecoration(
                     labelText: 'Contraseña',
                     prefixIcon: const Icon(Icons.lock),
-                    //  ojito
                     suffixIcon: IconButton(
-                      onPressed: () => setState(() => _showPassword = !_showPassword),
-                      icon: Icon(_showPassword ? Icons.visibility_off : Icons.visibility),
+                      onPressed: () =>
+                          setState(() => _showPassword = !_showPassword),
+                      icon: Icon(
+                        _showPassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(15),
