@@ -23,7 +23,7 @@ const List<String> kSucursales = [
   'Izcalli',
   'CD Azteca 1',
   'Casas Aleman',
-  'Zacatengo',
+  'Zacatenco',
   'Centro Historico',
   'Neza',
   'Ceda E21',
