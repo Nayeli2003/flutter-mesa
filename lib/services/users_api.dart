@@ -107,4 +107,34 @@ class UsersApi {
     final res = await http.delete(uri, headers: _headers);
     if (res.statusCode != 200) throw Exception(res.body);
   }
+
+  // EDITAR USUARIO (PUT)
+  Future<void> updateUser({
+    required int idUsuario,
+    String? nombre,
+    String? username,
+    int? idRol,
+    int? idSucursal,
+    bool? activo,
+    String? password,
+  }) async {
+    final uri = Uri.parse('$baseUrl/usuarios/$idUsuario');
+
+    final res = await http.put(
+      uri,
+      headers: _headers,
+      body: jsonEncode({
+        if (nombre != null) "nombre": nombre,
+        if (username != null) "username": username,
+        if (idRol != null) "id_rol": idRol,
+        if (idSucursal != null) "id_sucursal": idSucursal,
+        if (activo != null) "activo": activo,
+        if (password != null && password.isNotEmpty) "password": password,
+      }),
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Error al actualizar: ${res.statusCode} ${res.body}');
+    }
+  }
 }

@@ -6,37 +6,36 @@ import '../../widgets/app_drawer.dart';
 import 'package:mesa_sana/services/session.dart';
 
 const List<String> kSucursales = [
-'Casas Aleman',
-'CD Azteca 1',
-'CD Azteca 2',
-'CD Cuauhtemoc',
-'Ceda 512',
-'Ceda 517',
-'Ceda E21',
-'Ceda San Vicente Chicoloapan',
-'Cedis Almacén',
-'Cedis Oficina',
-'Centro Historico',
-'Coacalco',
-'Granjas',
-'Izcalli',
-'Jardines de Morelos 1',
-'Jardines de Morelos 2',
-'Neza',
-'Nuevo Laredo',
-'Ojo de Agua',
-'San Agustin',
-'San Cristobal',
-'San Pablo',
-'Tecámac 4',
-'Tecámac centro',
-'Tecámac la Principal',
-'Tecámac Presidencia',
-'Tezontepec',
-'Via Morelos',
-'Zacatenco',
-'Zumpango'
-
+  'Casas Aleman',
+  'CD Azteca 1',
+  'CD Azteca 2',
+  'CD Cuauhtemoc',
+  'Ceda 512',
+  'Ceda 517',
+  'Ceda E21',
+  'Ceda San Vicente Chicoloapan',
+  'Cedis Almacén',
+  'Cedis Oficina',
+  'Centro Historico',
+  'Coacalco',
+  'Granjas',
+  'Izcalli',
+  'Jardines de Morelos 1',
+  'Jardines de Morelos 2',
+  'Neza',
+  'Nuevo Laredo',
+  'Ojo de Agua',
+  'San Agustin',
+  'San Cristobal',
+  'San Pablo',
+  'Tecámac 4',
+  'Tecámac centro',
+  'Tecámac la Principal',
+  'Tecámac Presidencia',
+  'Tezontepec',
+  'Via Morelos',
+  'Zacatenco',
+  'Zumpango',
 ];
 
 // ============================================================
@@ -168,6 +167,36 @@ class UsersApi {
     final res = await http.delete(uri, headers: _headers);
 
     if (res.statusCode != 200) throw Exception(res.body);
+  }
+
+  // EDITAR USUARIO (PUT)
+  Future<void> updateUser({
+    required int idUsuario,
+    String? nombre,
+    String? username,
+    int? idRol,
+    int? idSucursal,
+    bool? activo,
+    String? password,
+  }) async {
+    final uri = Uri.parse('$baseUrl/usuarios/$idUsuario');
+
+    final res = await http.put(
+      uri,
+      headers: _headers,
+      body: jsonEncode({
+        if (nombre != null) "nombre": nombre,
+        if (username != null) "username": username,
+        if (idRol != null) "id_rol": idRol,
+        if (idSucursal != null) "id_sucursal": idSucursal,
+        if (activo != null) "activo": activo,
+        if (password != null && password.isNotEmpty) "password": password,
+      }),
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Error al actualizar: ${res.statusCode} ${res.body}');
+    }
   }
 }
 
@@ -554,16 +583,13 @@ class _AdminUsersViewState extends State<AdminUsersView>
                           activo: activo,
                         );
                       } else {
-                        // Si se quiere editar en backend, necesitas endpoint PUT /usuarios/{id}
-                        // Por ahora: solo recarga (o implementamos update después).
-                        // Te dejo listo el flujo para cuando tengas update.
-                        // await api.updateUser(...);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Edición backend: falta endpoint PUT /usuarios/{id}',
-                            ),
-                          ),
+                        await api.updateUser(
+                          idUsuario: user!.id,
+                          nombre: nombre,
+                          username: username,
+                          idRol: 1,
+                          activo: activo,
+                          password: pass.isNotEmpty ? pass : null,
                         );
                       }
 
@@ -700,12 +726,13 @@ class _AdminUsersViewState extends State<AdminUsersView>
                           activo: activo,
                         );
                       } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Edición backend: falta endpoint PUT /usuarios/{id}',
-                            ),
-                          ),
+                        await api.updateUser(
+                          idUsuario: user!.id,
+                          nombre: nombre,
+                          username: username,
+                          idRol: 2,
+                          activo: activo,
+                          password: pass.isNotEmpty ? pass : null,
                         );
                       }
 
@@ -926,12 +953,14 @@ class _AdminUsersViewState extends State<AdminUsersView>
                           activo: activo,
                         );
                       } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Edición backend: falta endpoint PUT /usuarios/{id}',
-                            ),
-                          ),
+                        await api.updateUser(
+                          idUsuario: user!.id,
+                          nombre: suc,
+                          username: username,
+                          idRol: 3,
+                          idSucursal: bid,
+                          activo: activo,
+                          password: pass.isNotEmpty ? pass : null,
                         );
                       }
 

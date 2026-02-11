@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'session.dart'; 
+import 'session.dart';
 
 class UsersApi {
   final String baseUrl; // EJ: http://127.0.0.1:8000/api
@@ -8,9 +8,9 @@ class UsersApi {
   UsersApi({required this.baseUrl});
 
   Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        if (Session.token != null) 'Authorization': 'Bearer ${Session.token}',
-      };
+    'Content-Type': 'application/json',
+    if (Session.token != null) 'Authorization': 'Bearer ${Session.token}',
+  };
 
   Future<List<dynamic>> list({int? idRol, bool? activo, String? q}) async {
     final params = <String, String>{};
@@ -100,5 +100,35 @@ class UsersApi {
     final uri = Uri.parse('$baseUrl/usuarios/$idUsuario');
     final res = await http.delete(uri, headers: _headers);
     if (res.statusCode != 200) throw Exception(res.body);
+  }
+
+  // EDITAR USUARIO (PUT)
+  Future<void> updateUser({
+    required int idUsuario,
+    String? nombre,
+    String? username,
+    int? idRol,
+    int? idSucursal,
+    bool? activo,
+    String? password,
+  }) async {
+    final uri = Uri.parse('$baseUrl/usuarios/$idUsuario');
+
+    final res = await http.put(
+      uri,
+      headers: _headers,
+      body: jsonEncode({
+        if (nombre != null) "nombre": nombre,
+        if (username != null) "username": username,
+        if (idRol != null) "id_rol": idRol,
+        if (idSucursal != null) "id_sucursal": idSucursal,
+        if (activo != null) "activo": activo,
+        if (password != null && password.isNotEmpty) "password": password,
+      }),
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Error al actualizar: ${res.statusCode} ${res.body}');
+    }
   }
 }
