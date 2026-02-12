@@ -160,7 +160,7 @@ class TechnicianDashboardView extends StatelessWidget {
                                 'priority': priority,
                                 'status': status,
                                 'createdAt': '2026-01-14 09:20',
-                                'isTechnician': true, //  IMPORTANTE
+                                'role': 'tecnico', //  IMPORTANTE
                                 'evidences': [], // luego serán reales
                                 'comments': [],
                               },

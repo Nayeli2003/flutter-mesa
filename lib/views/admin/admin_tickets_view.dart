@@ -700,7 +700,7 @@ class _AdminTicketsCards extends StatelessWidget {
                   'priority': _priorityText(t.priority).toUpperCase(),
                   'status': _statusText(t.status),
                   'createdAt': _fmtDate(t.fecha),
-                  'isTechnician': false,
+                  'role': 'admin',
                   'category': 'Admin',
                   'description': 'Detalle pendiente de backend',
                   'evidences': <Map<String, dynamic>>[],
@@ -867,7 +867,7 @@ class _AdminTicketsTableState extends State<_AdminTicketsTable> {
                                     ).toUpperCase(),
                                     'status': _statusText(t.status),
                                     'createdAt': _fmtDate(t.fecha),
-                                    'isTechnician': false,
+                                    'role': 'admin',
                                     'category': 'Admin',
                                     'description':
                                         'Detalle pendiente de backend',
