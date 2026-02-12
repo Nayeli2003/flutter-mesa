@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
+enum TicketUserRole { admin, tecnico, sucursal }
+
 class TicketDetailView extends StatefulWidget {
   const TicketDetailView({super.key});
 
@@ -16,8 +18,15 @@ class _TicketDetailViewState extends State<TicketDetailView> {
   bool _initialized = false;
 
   late Map<String, dynamic> _ticket;
-  late bool _isTechnician;
+  late TicketUserRole _role;
+
   late String _status;
+
+  bool get _isAdmin => _role == TicketUserRole.admin;
+  bool get _isTechnician => _role == TicketUserRole.tecnico;
+  bool get _isBranch => _role == TicketUserRole.sucursal;
+
+  final List<String> _technicians = ['Juan', 'Pedro', 'Luis'];
 
   @override
   void dispose() {
@@ -33,7 +42,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     final args = ModalRoute.of(context)?.settings.arguments;
 
     _ticket = (args is Map<String, dynamic>)
-        ? args
+        ? Map<String, dynamic>.from(args)
         : <String, dynamic>{
             'id': 'TCK-101',
             'title': 'Sin internet en recepción',
@@ -44,7 +53,8 @@ class _TicketDetailViewState extends State<TicketDetailView> {
             'priority': 'ROJO',
             'status': 'Abierto',
             'createdAt': '2026-01-14 09:20',
-            'isTechnician': false, // Sucursal por defecto
+            'role': 'sucursal',
+            'assignedTo': null,
             'evidences': <Map<String, dynamic>>[
               {
                 'type': 'image',
@@ -65,7 +75,19 @@ class _TicketDetailViewState extends State<TicketDetailView> {
             ],
           };
 
-    _isTechnician = _ticket['isTechnician'] == true;
+    final roleString = (_ticket['role'] ?? 'sucursal').toString();
+
+    switch (roleString) {
+      case 'admin':
+        _role = TicketUserRole.admin;
+        break;
+      case 'tecnico':
+        _role = TicketUserRole.tecnico;
+        break;
+      default:
+        _role = TicketUserRole.sucursal;
+    }
+
     _status = (_ticket['status'] ?? 'Abierto').toString();
 
     _initialized = true;
@@ -83,8 +105,17 @@ class _TicketDetailViewState extends State<TicketDetailView> {
   }
 
   Future<void> _addComment({required String by, required String text}) async {
-    final comments = (_ticket['comments'] as List?) ?? [];
+    final List<Map<String, String>> comments = List<Map<String, String>>.from(
+      (_ticket['comments'] ?? []).map<Map<String, String>>(
+        (e) => {
+          'by': (e['by'] ?? '').toString(),
+          'text': (e['text'] ?? '').toString(),
+        },
+      ),
+    );
+
     comments.add({'by': by, 'text': text});
+
     setState(() {
       _ticket['comments'] = comments;
     });
@@ -134,7 +165,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
   Future<void> _changeStatus(String newStatus) async {
     final oldStatus = _status;
 
-    // Si técnico intenta CERRAR: pedir solución
+    // Técnico intenta cerrar
     if (_isTechnician && newStatus == 'Cerrado' && oldStatus != 'Cerrado') {
       final solution = await _askTextDialog(
         title: 'Cerrar ticket',
@@ -142,10 +173,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
         hint: 'Ej. Se cambió el cable / se configuró el router / etc.',
       );
 
-      if (solution == null || solution.trim().isEmpty) {
-        // canceló
-        return;
-      }
+      if (solution == null || solution.trim().isEmpty) return;
 
       setState(() {
         _status = 'Cerrado';
@@ -161,17 +189,14 @@ class _TicketDetailViewState extends State<TicketDetailView> {
       return;
     }
 
-    // Si técnico REABRE desde CERRADO: pedir motivo
+    // Técnico reabre
     if (_isTechnician && oldStatus == 'Cerrado' && newStatus != 'Cerrado') {
       final reason = await _askTextDialog(
         title: 'Reabrir ticket',
         label: 'Motivo de reapertura (obligatorio)',
-        hint: 'Ej. Revisión adicional / falla intermitente / etc.',
       );
 
-      if (reason == null || reason.trim().isEmpty) {
-        return;
-      }
+      if (reason == null || reason.trim().isEmpty) return;
 
       setState(() {
         _status = newStatus;
@@ -187,21 +212,20 @@ class _TicketDetailViewState extends State<TicketDetailView> {
       return;
     }
 
-    // Cambio normal (técnico) Abierto <-> En proceso
-    if (_isTechnician) {
+    // Admin o Técnico cambian estado normal
+    if (_isTechnician || _isAdmin) {
       setState(() {
         _status = newStatus;
         _ticket['status'] = newStatus;
       });
 
       await _addComment(
-        by: 'Técnico',
+        by: _isAdmin ? 'Administrador' : 'Técnico',
         text: '📌 Estado actualizado a "$newStatus".',
       );
+
       return;
     }
-
-    // Si NO es técnico, no debería cambiar estado
   }
 
   Widget _emptyPreview() {
@@ -223,15 +247,22 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     final String priority = (_ticket['priority'] ?? 'VERDE').toString();
     final String createdAt = (_ticket['createdAt'] ?? '').toString();
 
-    final evidences = (_ticket['evidences'] as List?) ?? [];
-    final comments = (_ticket['comments'] as List?) ?? [];
+    final evidences = List<Map<String, dynamic>>.from(
+      (_ticket['evidences'] ?? []).map<Map<String, dynamic>>(
+        (e) => Map<String, dynamic>.from(e),
+      ),
+    );
+
+    final comments = List<Map<String, String>>.from(_ticket['comments'] ?? []);
 
     final pColor = _priorityColor(priority);
 
-    // Reglas de comunicación:
-    // - Sucursal: puede comentar si NO está cerrado
-    // - Técnico: puede comentar siempre (y si está cerrado, puede reabrir)
-    final bool canWriteComment = _isTechnician || _status != 'Cerrado';
+    final bool canWriteComment =
+        _isAdmin || _isTechnician || (_isBranch && _status != 'Cerrado');
+
+    final assignedValue = _technicians.contains(_ticket['assignedTo'])
+        ? _ticket['assignedTo']
+        : null;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F3),
@@ -265,7 +296,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    // Header
+                    /// ================= HEADER =================
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
@@ -346,7 +377,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
 
                     const SizedBox(height: 14),
 
-                    // Descripción
+                    /// ================= DESCRIPCIÓN =================
                     _Card(
                       title: 'Descripción',
                       child: Text(
@@ -362,7 +393,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
 
                     const SizedBox(height: 14),
 
-                    // Evidencias
+                    /// ================= EVIDENCIAS =================
                     _Card(
                       title: 'Evidencias',
                       trailing: Text(
@@ -463,9 +494,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                                           ),
                                         ),
                                         TextButton(
-                                          onPressed: () {
-                                            // TODO: abrir / descargar
-                                          },
+                                          onPressed: () {},
                                           child: const Text('Ver'),
                                         ),
                                       ],
@@ -478,7 +507,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
 
                     const SizedBox(height: 14),
 
-                    // Comentarios / Historial
+                    /// ================= HISTORIAL =================
                     _Card(
                       title: 'Historial',
                       trailing: Text(
@@ -541,7 +570,70 @@ class _TicketDetailViewState extends State<TicketDetailView> {
 
                     const SizedBox(height: 14),
 
-                    // Acciones del Técnico (cambiar estado + comentar)
+                    /// ================= ACCIONES ADMIN =================
+                    if (_isAdmin)
+                      _Card(
+                        title: 'Acciones del administrador',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            DropdownButtonFormField<String>(
+                              value: assignedValue,
+                              items: _technicians
+                                  .map(
+                                    (t) => DropdownMenuItem(
+                                      value: t,
+                                      child: Text(t),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _ticket['assignedTo'] = value;
+                                });
+                              },
+                              decoration: InputDecoration(
+                                labelText: 'Asignar técnico',
+                                prefixIcon: const Icon(Icons.person),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            DropdownButtonFormField<String>(
+                              value: _status,
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'Abierto',
+                                  child: Text('Abierto'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'En proceso',
+                                  child: Text('En proceso'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Cerrado',
+                                  child: Text('Cerrado'),
+                                ),
+                              ],
+                              onChanged: (value) async {
+                                if (value == null) return;
+                                await _changeStatus(value);
+                              },
+                              decoration: InputDecoration(
+                                labelText: 'Cambiar estado',
+                                prefixIcon: const Icon(Icons.swap_horiz),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    /// ================= ACCIONES TÉCNICO =================
                     if (_isTechnician)
                       _Card(
                         title: 'Acciones del técnico',
@@ -577,7 +669,6 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                               ),
                             ),
                             const SizedBox(height: 12),
-
                             TextField(
                               controller: _commentController,
                               maxLines: 3,
@@ -590,7 +681,6 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                               ),
                             ),
                             const SizedBox(height: 12),
-
                             SizedBox(
                               width: double.infinity,
                               height: 46,
@@ -608,14 +698,6 @@ class _TicketDetailViewState extends State<TicketDetailView> {
 
                                   await _addComment(by: 'Técnico', text: text);
                                   _commentController.clear();
-
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Comentario agregado'),
-                                      ),
-                                    );
-                                  }
                                 },
                                 icon: const Icon(Icons.send),
                                 label: const Text(
@@ -628,8 +710,8 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                         ),
                       ),
 
-                    //  Acciones de SUCURSAL: comentar si NO cerrado / solicitar reapertura si cerrado
-                    if (!_isTechnician)
+                    /// ================= ACCIONES SUCURSAL =================
+                    if (_isBranch)
                       _Card(
                         title: 'Acciones de sucursal',
                         child: Column(
@@ -668,16 +750,6 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                                       text: text,
                                     );
                                     _commentController.clear();
-
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Comentario enviado'),
-                                        ),
-                                      );
-                                    }
                                   },
                                   icon: const Icon(Icons.send),
                                   label: const Text(
@@ -696,53 +768,6 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
-                              const SizedBox(height: 12),
-                              SizedBox(
-                                width: double.infinity,
-                                height: 46,
-                                child: ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFFF59E0B),
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                  ),
-                                  onPressed: () async {
-                                    final reason = await _askTextDialog(
-                                      title: 'Solicitar reapertura',
-                                      label: 'Motivo (obligatorio)',
-                                      hint:
-                                          'Ej. Sigue fallando / no quedó resuelto / etc.',
-                                    );
-                                    if (reason == null || reason.trim().isEmpty)
-                                      return;
-
-                                    await _addComment(
-                                      by: 'Sucursal',
-                                      text:
-                                          '🔔 Solicitud de reapertura: $reason',
-                                    );
-
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Solicitud enviada'),
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  icon: const Icon(Icons.refresh),
-                                  label: const Text(
-                                    'Solicitar reapertura',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ),
-                              ),
                             ],
                           ],
                         ),
@@ -757,8 +782,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     );
   }
 }
-
-/* ===================== UI COMPONENTS ===================== */
+// ===================== UI COMPONENTS =====================
 
 class _Card extends StatelessWidget {
   final String title;
