@@ -237,6 +237,19 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     );
   }
 
+  void _downloadTechnicalReport() {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Descargando memoria técnica...'),
+    ),
+  );
+
+  // Aquí después conectaremos backend
+  // Por ahora es solo simulación
+  //launchUrl(Uri.parse('$baseUrl/tickets/$id/pdf'));
+}
+
+
   @override
   Widget build(BuildContext context) {
     final String id = (_ticket['id'] ?? '').toString();
@@ -569,6 +582,33 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                     ),
 
                     const SizedBox(height: 14),
+
+                    // ================= MEMORIA TÉCNICA PDF =================
+                    if (_status == 'Cerrado' && (_isAdmin || _isTechnician))
+                      _Card(
+                        title: 'Memoria técnica',
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF111827),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            onPressed: () {
+                              _downloadTechnicalReport();
+                            },
+                            icon: const Icon(Icons.picture_as_pdf),
+                            label: const Text(
+                              'Descargar memoria técnica (PDF)',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                        ),
+                      ),
 
                     /// ================= ACCIONES ADMIN =================
                     if (_isAdmin)

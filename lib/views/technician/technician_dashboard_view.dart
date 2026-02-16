@@ -6,7 +6,7 @@ class TechnicianDashboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Tickets MOCK (solo UI)
+    // Tickets MOCK (solo UI)-> se debe cambiar para que se conecte al backend
     final tickets = [
       {
         'id': 'TCK-001',
