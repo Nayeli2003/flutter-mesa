@@ -23,11 +23,75 @@ class _CreateTicketViewState extends State<CreateTicketView> {
   final asuntoController = TextEditingController();
   final descripcionController = TextEditingController();
 
-  String? sucursal;
-  String? categoria;
+  int? sucursalId;
+  String? categoriaSeleccionada;
+  String? subtipoSeleccionado;
 
   // Evidencias (imágenes o videos)
   final List<PlatformFile> evidencias = [];
+
+  /// ==========================
+  /// SUCURSALES ORDENADAS
+  /// ==========================
+
+  final List<Map<String, dynamic>> sucursales = [
+    {'id': 11, 'nombre': 'Bodega 512'},
+    {'id': 12, 'nombre': 'Bodega 517'},
+    {'id': 25, 'nombre': 'Bodega E21'},
+    {'id': 28, 'nombre': 'Cedis Almacén'},
+    {'id': 29, 'nombre': 'Cedis Oficinas'},
+    {'id': 21, 'nombre': 'Sucursal Casas Alemán'},
+    {'id': 7, 'nombre': 'Sucursal CD Cuauhtémoc'},
+    {'id': 23, 'nombre': 'Sucursal Centro Histórico'},
+    {'id': 20, 'nombre': 'Sucursal Ciudad Azteca 1'},
+    {'id': 39, 'nombre': 'Sucursal Ciudad Azteca 2'},
+    {'id': 38, 'nombre': 'Sucursal Coacalco'},
+    {'id': 30, 'nombre': 'Sucursal Granjas'},
+    {'id': 19, 'nombre': 'Sucursal Izcalli'},
+    {'id': 31, 'nombre': 'Sucursal Jardines de Morelos 2'},
+    {'id': 15, 'nombre': 'Sucursal Jardines de Morelos 1'},
+    {'id': 24, 'nombre': 'Sucursal Neza'},
+    {'id': 14, 'nombre': 'Sucursal Nuevo Laredo'},
+    {'id': 9, 'nombre': 'Sucursal Ojo de Agua'},
+    {'id': 22, 'nombre': 'Sucursal Rioja'},
+    {'id': 36, 'nombre': 'Sucursal San Agustín'},
+    {'id': 16, 'nombre': 'Sucursal San Cristóbal'},
+    {'id': 17, 'nombre': 'Sucursal San Pablo'},
+    {'id': 35, 'nombre': 'Sucursal San Vicente Chicoloapan'},
+    {'id': 34, 'nombre': 'Sucursal Tecámac 4'},
+    {'id': 4, 'nombre': 'Sucursal Tecámac Centro'},
+    {'id': 5, 'nombre': 'Sucursal Tecámac La Principal'},
+    {'id': 3, 'nombre': 'Sucursal Tezontepec'},
+    {'id': 15, 'nombre': 'Sucursal Vía Morelos'},
+    {'id': 33, 'nombre': 'Sucursal Zumpango'},
+  ]..sort((a, b) => a['nombre'].compareTo(b['nombre']));
+
+  /// ==========================
+  /// CATEGORÍAS + SUBTIPOS
+  /// ==========================
+
+  final Map<String, List<String>> categorias = {
+    "Facturación": [
+      "Cambio de precio",
+      "Error al facturar al cliente",
+      "Código erróneo SAT",
+      "Error en serie de factura",
+      "Error SMTP",
+      "Reimpresión de ticket",
+    ],
+    "Sistema MPro": [
+      "Exceso de usuarios",
+      "No cuenta con licencia",
+      "Producto Talla/Color",
+    ],
+    "Conectividad": [
+      "Error de conexión",
+      "Falla Telmex",
+      "Error en réplicas (Hamachi)",
+    ],
+    "Correo": ["Falla en el correo"],
+    "Infraestructura": ["Falla de luz"],
+  };
 
   @override
   void dispose() {
@@ -36,22 +100,23 @@ class _CreateTicketViewState extends State<CreateTicketView> {
     super.dispose();
   }
 
+  /// ==========================
+  /// EVIDENCIAS
+  /// ==========================
+
   Future<void> _pickEvidencias() async {
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
       type: FileType.custom,
-      allowedExtensions: const ['jpg', 'jpeg', 'png', 'mp4', 'mov', 'mkv', 'avi'],
-      withData: kIsWeb, // en WEB necesitamos bytes para previews (imagenes)
-      withReadStream: kIsWeb, // en WEB necesitamos stream para videos grandes
+      allowedExtensions: const ['jpg', 'jpeg', 'png', 'mp4', 'mov'],
+      withData: kIsWeb,
+      withReadStream: kIsWeb,
     );
 
     if (result == null) return;
 
     setState(() {
-      for (final f in result.files) {
-        final exists = evidencias.any((e) => e.name == f.name && e.size == f.size);
-        if (!exists) evidencias.add(f);
-      }
+      evidencias.addAll(result.files);
     });
   }
 
@@ -108,10 +173,11 @@ class _CreateTicketViewState extends State<CreateTicketView> {
       var request = http.MultipartRequest('POST', url);
 
       // 3. Agregar campos de texto
-      request.fields['asunto'] = asuntoController.text.trim();
+      request.fields['titulo'] = asuntoController.text.trim();
       request.fields['descripcion'] = descripcionController.text.trim();
-      request.fields['sucursal'] = sucursal ?? '';
-      request.fields['categoria'] = categoria ?? '';
+      request.fields['id_sucursal'] = sucursalId.toString();
+      request.fields['categoria'] = categoriaSeleccionada!;
+      request.fields['tipo_problema'] = subtipoSeleccionado!;
 
       // 4. Agregar archivos (Evidencias)
       for (var f in evidencias) {
@@ -187,14 +253,16 @@ class _CreateTicketViewState extends State<CreateTicketView> {
         Navigator.pop(context); // Regresar a la lista
       } else {
         // ERROR DE SERVIDOR
-        throw Exception('Error en el servidor: ${response.statusCode}\n${response.body}');
+        throw Exception(
+          'Error en el servidor: ${response.statusCode}\n${response.body}',
+        );
       }
     } catch (e) {
       // Error de red o código
       if (mounted) Navigator.pop(context); // Quitar loading si hay error
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo enviar: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('No se pudo enviar: $e')));
     }
   }
 
@@ -284,81 +352,63 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                     ),
                     const SizedBox(height: 12),
 
-                    DropdownButtonFormField<String>(
-                      value: sucursal,
-                      items: const [
-                        DropdownMenuItem(value: 'Centro', child: Text('Sucursal Tezontepec')),//se cambia el  valor de centro,norte o sur por el id de la sucursal para mas facil
-                        DropdownMenuItem(value: 'Norte', child: Text('Sucursal Tecámac centro')),
-                        DropdownMenuItem(value: 'Sur', child: Text('Sucursal Tecámac la Principal')),
-                        DropdownMenuItem(value: 'Centro', child: Text('Sucursal Tecámac Presidencia')),
-                        DropdownMenuItem(value: 'Norte', child: Text('Sucursal CD Cuauhtemoc')),
-                        DropdownMenuItem(value: 'Sur', child: Text('Sucursal Ojo de Agua')),
-                        DropdownMenuItem(value: 'Centro', child: Text('Bodega 512')),
-                        DropdownMenuItem(value: 'Norte', child: Text('Bodega 517')),
-                        DropdownMenuItem(value: 'Sur', child: Text('Sucursal Jardines de Morelos 1')),
-                        DropdownMenuItem(value: 'Centro', child: Text('Sucursal Nuevo Laredo')),
-                        DropdownMenuItem(value: 'Norte', child: Text('Sucursal Via Morelos')),
-                        DropdownMenuItem(value: 'Sur', child: Text('Sucursal San Cristobal')),
-                        DropdownMenuItem(value: 'Centro', child: Text('Sucursal San pablo')),
-                        DropdownMenuItem(value: 'Norte', child: Text('Sucursal Izcalli ')),
-                        DropdownMenuItem(value: 'Sur', child: Text('Sucursal Ciudad Azteca 1')),
-                        DropdownMenuItem(value: 'Centro', child: Text('Sucursal Casas Aleman')),
-                        DropdownMenuItem(value: 'Norte', child: Text('Sucursal Rioja')),
-                        DropdownMenuItem(value: 'Sur', child: Text('Sucursal Centro Historico')),
-                        DropdownMenuItem(value: 'Norte', child: Text('Sucursal Neza')),
-                        DropdownMenuItem(value: 'Sur', child: Text('Bodega E21')),
-                        DropdownMenuItem(value: 'Norte', child: Text('Cedis Oficinas')),
-                        DropdownMenuItem(value: 'Sur', child: Text('Cedis Almacén ')),
-                        DropdownMenuItem(value: 'Norte', child: Text('Sucursal Granjas')),
-                        DropdownMenuItem(value: 'Sur', child: Text('Sucursal Jardines de Morelos')),
-                        DropdownMenuItem(value: 'Norte', child: Text('Sucursal Zumpango')),
-                        DropdownMenuItem(value: 'Sur', child: Text('Sucursal Tecámac 4')),
-                        DropdownMenuItem(value: 'Norte', child: Text('Sucursal San Vicente Chicoloapan')),
-                        DropdownMenuItem(value: 'Sur', child: Text('Sucursal San Agustin')),
-                        DropdownMenuItem(value: 'Norte', child: Text('Sucursal Coacalco')),
-                        DropdownMenuItem(value: 'Sur', child: Text('Sucursal Ciudad Azteca 2')),
-                      ],
-                      onChanged: (value) => setState(() => sucursal = value),
-                      decoration: InputDecoration(
-                        labelText: 'Sucursal',
-                        prefixIcon: const Icon(Icons.store),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Selecciona una sucursal';
-                        }
-                        return null;
-                      },
+                    /// SUCURSAL
+                    DropdownButtonFormField<int>(
+                      value: sucursalId,
+                      items: sucursales
+                          .map(
+                            (s) => DropdownMenuItem<int>(
+                              value: s['id'],
+                              child: Text(s['nombre']),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) => setState(() => sucursalId = v),
+                      decoration: const InputDecoration(labelText: 'Sucursal'),
+                      validator: (v) =>
+                          v == null ? 'Selecciona sucursal' : null,
                     ),
                     const SizedBox(height: 12),
 
-                    DropdownButtonFormField<String>(
-                      value: categoria,
-                      items: const [
-                        DropdownMenuItem(value: 'Internet', child: Text('Internet / Red')),
-                        DropdownMenuItem(value: 'Equipo', child: Text('Equipo de cómputo')),
-                        DropdownMenuItem(value: 'Impresora', child: Text('Impresora')),
-                        DropdownMenuItem(value: 'Sistema', child: Text('Sistema / ERP')),
-                        DropdownMenuItem(value: 'Otro', child: Text('Otro')),
-                      ],
-                      onChanged: (value) => setState(() => categoria = value),
-                      decoration: InputDecoration(
-                        labelText: 'Categoría',
-                        prefixIcon: const Icon(Icons.category),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
+                    /// CATEGORÍA
+                      DropdownButtonFormField<String>(
+                        value: categoriaSeleccionada,
+                        items: categorias.keys
+                            .map((c) => DropdownMenuItem(
+                                  value: c,
+                                  child: Text(c),
+                                ))
+                            .toList(),
+                        onChanged: (v) {
+                          setState(() {
+                            categoriaSeleccionada = v;
+                            subtipoSeleccionado = null;
+                          });
+                        },
+                        decoration:
+                            const InputDecoration(labelText: 'Categoría'),
+                        validator: (v) =>
+                            v == null ? 'Selecciona categoría' : null,
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Selecciona una categoría';
-                        }
-                        return null;
-                      },
-                    ),
+                      const SizedBox(height: 12),
+
+                       /// SUBTIPO
+                      if (categoriaSeleccionada != null)
+                        DropdownButtonFormField<String>(
+                          value: subtipoSeleccionado,
+                          items: categorias[categoriaSeleccionada]!
+                              .map((s) => DropdownMenuItem(
+                                    value: s,
+                                    child: Text(s),
+                                  ))
+                              .toList(),
+                          onChanged: (v) =>
+                              setState(() => subtipoSeleccionado = v),
+                          decoration:
+                              const InputDecoration(labelText: 'Subtipo'),
+                          validator: (v) =>
+                              v == null ? 'Selecciona subtipo' : null,
+                        ),
 
                     const SizedBox(height: 18),
 
@@ -412,7 +462,9 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF9FAFB),
                                 borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: const Color(0xFFE5E7EB)),
+                                border: Border.all(
+                                  color: const Color(0xFFE5E7EB),
+                                ),
                               ),
                               child: Row(
                                 children: [
@@ -421,21 +473,21 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                                       borderRadius: BorderRadius.circular(10),
                                       child: kIsWeb
                                           ? (f.bytes != null
-                                              ? Image.memory(
-                                                  f.bytes as Uint8List,
-                                                  width: 44,
-                                                  height: 44,
-                                                  fit: BoxFit.cover,
-                                                )
-                                              : _emptyPreview())
+                                                ? Image.memory(
+                                                    f.bytes as Uint8List,
+                                                    width: 44,
+                                                    height: 44,
+                                                    fit: BoxFit.cover,
+                                                  )
+                                                : _emptyPreview())
                                           : (f.path != null
-                                              ? Image.file(
-                                                  File(f.path!),
-                                                  width: 44,
-                                                  height: 44,
-                                                  fit: BoxFit.cover,
-                                                )
-                                              : _emptyPreview()),
+                                                ? Image.file(
+                                                    File(f.path!),
+                                                    width: 44,
+                                                    height: 44,
+                                                    fit: BoxFit.cover,
+                                                  )
+                                                : _emptyPreview()),
                                     )
                                   else
                                     Container(
@@ -443,13 +495,21 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                                       height: 44,
                                       decoration: BoxDecoration(
                                         color: isVid
-                                            ? const Color(0xFFF59E0B).withOpacity(0.15)
-                                            : const Color(0xFF4CAF50).withOpacity(0.15),
+                                            ? const Color(
+                                                0xFFF59E0B,
+                                              ).withOpacity(0.15)
+                                            : const Color(
+                                                0xFF4CAF50,
+                                              ).withOpacity(0.15),
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: Icon(
-                                        isVid ? Icons.videocam : Icons.insert_drive_file,
-                                        color: isVid ? const Color(0xFFF59E0B) : const Color(0xFF4CAF50),
+                                        isVid
+                                            ? Icons.videocam
+                                            : Icons.insert_drive_file,
+                                        color: isVid
+                                            ? const Color(0xFFF59E0B)
+                                            : const Color(0xFF4CAF50),
                                       ),
                                     ),
 
@@ -457,7 +517,8 @@ class _CreateTicketViewState extends State<CreateTicketView> {
 
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           f.name,
@@ -485,7 +546,10 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                                   IconButton(
                                     tooltip: 'Quitar',
                                     onPressed: () => _removeEvidencia(f),
-                                    icon: const Icon(Icons.close, color: Color(0xFF6B7280)),
+                                    icon: const Icon(
+                                      Icons.close,
+                                      color: Color(0xFF6B7280),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -530,7 +594,10 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                         icon: const Icon(Icons.send),
                         label: const Text(
                           'Enviar ticket',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),

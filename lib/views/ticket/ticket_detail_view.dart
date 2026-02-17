@@ -206,7 +206,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
 
       await _addComment(
         by: 'Técnico',
-        text: '🔄 Ticket reabierto a "$newStatus". Motivo: $reason',
+        text: 'Ticket reabierto a "$newStatus". Motivo: $reason',
       );
 
       return;
@@ -221,7 +221,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
 
       await _addComment(
         by: _isAdmin ? 'Administrador' : 'Técnico',
-        text: '📌 Estado actualizado a "$newStatus".',
+        text: 'Estado actualizado a "$newStatus".',
       );
 
       return;
