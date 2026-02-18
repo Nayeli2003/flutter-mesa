@@ -76,7 +76,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
       "Error al facturar al cliente",
       "Código erróneo SAT",
       "Error en serie de factura",
-      "Error SMTP",
+      "Error al firmar por falla en el servidor de correos smtp",
       "Reimpresión de ticket",
     ],
     "Sistema MPro": [

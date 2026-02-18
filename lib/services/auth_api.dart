@@ -2,133 +2,52 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'session.dart';
 
-class UsersApi {
-  final String baseUrl; // EJ: http://127.0.0.1:8000/api
+class AuthApi {
+  final String baseUrl;
 
-  UsersApi({required this.baseUrl});
+  AuthApi({required this.baseUrl});
 
-  Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    if (Session.token != null) 'Authorization': 'Bearer ${Session.token}',
-  };
-
-  Future<List<dynamic>> list({int? idRol, bool? activo, String? q}) async {
-    final params = <String, String>{};
-
-    if (idRol != null) params['id_rol'] = '$idRol';
-    if (activo != null) params['activo'] = activo ? '1' : '0';
-    if (q != null && q.trim().isNotEmpty) params['q'] = q.trim();
-
-    final uri = Uri.parse('$baseUrl/usuarios').replace(queryParameters: params);
-    final res = await http.get(uri, headers: _headers);
-
-    if (res.statusCode != 200) {
-      throw Exception('Error al listar: ${res.statusCode} ${res.body}');
-    }
-    return jsonDecode(res.body) as List<dynamic>;
-  }
-
-  Future<void> crearAdmin({
-    required String nombre,
+  Future<void> login({
     required String username,
     required String password,
-    required bool activo,
   }) async {
-    final uri = Uri.parse('$baseUrl/usuarios/admin');
+    final uri = Uri.parse('$baseUrl/login');
+
     final res = await http.post(
       uri,
-      headers: _headers,
+      headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'nombre': nombre,
-        'username': username,
-        'password': password,
-        'activo': activo,
-      }),
-    );
-    if (res.statusCode != 201) throw Exception(res.body);
-  }
-
-  Future<void> crearTecnico({
-    required String nombre,
-    required String username,
-    required String password,
-    required bool activo,
-  }) async {
-    final uri = Uri.parse('$baseUrl/usuarios/tecnico');
-    final res = await http.post(
-      uri,
-      headers: _headers,
-      body: jsonEncode({
-        'nombre': nombre,
-        'username': username,
-        'password': password,
-        'activo': activo,
-      }),
-    );
-    if (res.statusCode != 201) throw Exception(res.body);
-  }
-
-  Future<void> crearSucursal({
-    required int idSucursal,
-    required String nombreSucursal,
-    required String username,
-    required String password,
-    required bool activo,
-  }) async {
-    final uri = Uri.parse('$baseUrl/usuarios/sucursal');
-    final res = await http.post(
-      uri,
-      headers: _headers,
-      body: jsonEncode({
-        'id_sucursal': idSucursal,
-        'nombre': nombreSucursal,
-        'username': username,
-        'password': password,
-        'activo': activo,
-      }),
-    );
-    if (res.statusCode != 201) throw Exception(res.body);
-  }
-
-  Future<void> toggleEstado(int idUsuario) async {
-    final uri = Uri.parse('$baseUrl/usuarios/$idUsuario/estado');
-    final res = await http.patch(uri, headers: _headers);
-    if (res.statusCode != 200) throw Exception(res.body);
-  }
-
-  Future<void> eliminar(int idUsuario) async {
-    final uri = Uri.parse('$baseUrl/usuarios/$idUsuario');
-    final res = await http.delete(uri, headers: _headers);
-    if (res.statusCode != 200) throw Exception(res.body);
-  }
-
-  // EDITAR USUARIO (PUT)
-  Future<void> updateUser({
-    required int idUsuario,
-    String? nombre,
-    String? username,
-    int? idRol,
-    int? idSucursal,
-    bool? activo,
-    String? password,
-  }) async {
-    final uri = Uri.parse('$baseUrl/usuarios/$idUsuario');
-
-    final res = await http.put(
-      uri,
-      headers: _headers,
-      body: jsonEncode({
-        if (nombre != null) "nombre": nombre,
-        if (username != null) "username": username,
-        if (idRol != null) "id_rol": idRol,
-        if (idSucursal != null) "id_sucursal": idSucursal,
-        if (activo != null) "activo": activo,
-        if (password != null && password.isNotEmpty) "password": password,
+        "username": username,
+        "password": password,
       }),
     );
 
     if (res.statusCode != 200) {
-      throw Exception('Error al actualizar: ${res.statusCode} ${res.body}');
+      throw Exception("Credenciales incorrectas");
     }
+
+    final data = jsonDecode(res.body);
+
+    // GUARDAMOS EN SESSION
+    Session.token = data["token"];
+    Session.idUsuario = data["user"]["id_usuario"];
+    Session.nombre = data["user"]["nombre"];
+
+    // Si tu backend devuelve rol como string
+    final rol = data["user"]["rol"];
+
+    if (rol == "admin") {
+      Session.idRol = 1;
+    } else if (rol == "tecnico") {
+      Session.idRol = 2;
+    } else {
+      Session.idRol = 3;//Aqui cae la sucursal 
+    }
+
+    await Session.save();
+  }
+
+  Future<void> logout() async {
+    await Session.clear();
   }
 }
