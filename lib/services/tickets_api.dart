@@ -65,7 +65,7 @@ class TicketsApi {
     }
   }
 
-  // RESOLVER TICKET
+  // RESOLVER TICKET TECNICO
   Future<void> resolver({
     required int idTicket,
     required int idEstado,
@@ -90,7 +90,7 @@ class TicketsApi {
     }
   }
 
-  // DESCARGAR PDF
+  // DESCARGAR PDF ADMIN/TECNICO
   Future<File> descargarPdf(int idTicket) async {
     final uri =
         Uri.parse('$baseUrl/tickets/$idTicket/pdf');

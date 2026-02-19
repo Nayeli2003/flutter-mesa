@@ -1,35 +1,67 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '../../widgets/app_drawer.dart';
+import '../../services/session.dart'; // 👈 ajusta si tu Session está en otro lado
 
-class BranchHomeView extends StatelessWidget {
+class BranchHomeView extends StatefulWidget {
   const BranchHomeView({super.key});
 
   @override
+  State<BranchHomeView> createState() => _BranchHomeViewState();
+}
+
+class _BranchHomeViewState extends State<BranchHomeView> {
+
+  List<dynamic> tickets = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarTickets();
+  }
+
+  Future<void> _cargarTickets() async {
+    try {
+      final response = await http.get(
+        Uri.parse('http://127.0.0.1:8000/api/tickets'),
+        headers: {
+          'Authorization': 'Bearer ${Session.token}',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          tickets = jsonDecode(response.body);
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  Color _priorityColor(String? color) {
+    switch (color) {
+      case 'red':
+        return const Color(0xFFEF4444);
+      case 'orange':
+        return const Color(0xFFF59E0B);
+      default:
+        return const Color(0xFF4CAF50);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // MOCK: tickets creados por esta sucursal
-    final tickets = [
-      {
-        'id': 'TCK-101',
-        'title': 'Sin internet en recepción',
-        'status': 'Abierto',
-        'priority': 'ROJO',
-        'minutes': 25,
-      },
-      {
-        'id': 'TCK-102',
-        'title': 'Impresora atascada',
-        'status': 'En proceso',
-        'priority': 'NARANJA',
-        'minutes': 80,
-      },
-      {
-        'id': 'TCK-103',
-        'title': 'Cambio de contraseña',
-        'status': 'Cerrado',
-        'priority': 'VERDE',
-        'minutes': 10,
-      },
-    ];
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F3),
@@ -46,225 +78,171 @@ class BranchHomeView extends StatelessWidget {
         centerTitle: true,
         iconTheme: const IconThemeData(color: Color(0xFF1F2937)),
       ),
-
-      // menú por rol sucursal
       drawer: const AppDrawer(role: UserRole.sucursal, title: 'Sucursal'),
 
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final bool isDesktop = width >= 1024;
-          final bool isTablet = width >= 600 && width < 1024;
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                final bool isDesktop = width >= 1024;
+                final bool isTablet = width >= 600 && width < 1024;
+                final double contentMaxWidth =
+                    isDesktop ? 900 : (isTablet ? 650 : double.infinity);
 
-          final double contentMaxWidth = isDesktop
-              ? 900
-              : (isTablet ? 650 : double.infinity);
-
-          return Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: contentMaxWidth),
-              child: Column(
-                children: [
-                  // Resumen rápido
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-                    child: Row(
+                return Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: contentMaxWidth),
+                    child: Column(
                       children: [
-                        Expanded(
-                          child: _MiniPill(
-                            label: 'Mis tickets',
-                            value: '${tickets.length}',
-                            color: const Color(0xFF4CAF50),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _MiniPill(
-                            label: 'Abiertos',
-                            value:
-                                '${tickets.where((t) => t['status'] == 'Abierto').length}',
-                            color: const Color(0xFFEF4444),
-                          ),
-                        ),
-                        if (!(!isTablet && !isDesktop)) ...[
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _MiniPill(
-                              label: 'En proceso',
-                              value:
-                                  '${tickets.where((t) => t['status'] == 'En proceso').length}',
-                              color: const Color(0xFFF59E0B),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
 
-                  // Lista de mis tickets
-                  Expanded(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
-                      itemCount: tickets.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        final t = tickets[index];
-                        final String id = t['id'] as String;
-                        final String title = t['title'] as String;
-                        final String status = t['status'] as String;
-                        final String priority = t['priority'] as String;
-                        final int minutes = t['minutes'] as int;
-
-                        final Color pColor = _priorityColor(priority);
-
-                        return InkWell(
-                          borderRadius: BorderRadius.circular(18),
-                          onTap: () {
-                            Navigator.pushNamed(
-                              context,
-                              '/ticket-detail',
-                              arguments: {
-                                'id': id,
-                                'title': title,
-                                'description':
-                                    'Descripción del problema reportado por la sucursal.',
-                                'branch':
-                                    'Sucursal (usuario)', // se coloca el nombre de la sucursal
-                                'category': 'Soporte técnico',
-                                'priority': priority,
-                                'status': status,
-                                'createdAt': '2026-01-14 09:20',
-                                'isTechnician':
-                                    false, // sucursal solo lectura
-                                'evidences': [], // luego le pasas las reales
-                                'comments': [],
-                              },
-                            );
-                          },
-
-                          child: Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(18),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.06),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
+                        // RESUMEN
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _MiniPill(
+                                  label: 'Mis tickets',
+                                  value: '${tickets.length}',
+                                  color: const Color(0xFF4CAF50),
                                 ),
-                              ],
-                            ),
-                            child: Row(
-                              children: [
-                                // indicador color prioridad
-                                Container(
-                                  width: 10,
-                                  height: 46,
-                                  decoration: BoxDecoration(
-                                    color: pColor,
-                                    borderRadius: BorderRadius.circular(12),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _MiniPill(
+                                  label: 'Abiertos',
+                                  value: '${tickets.where((t) => t['estado'] == 'Abierto').length}',
+                                  color: const Color(0xFFEF4444),
+                                ),
+                              ),
+                              if (!(!isTablet && !isDesktop)) ...[
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _MiniPill(
+                                    label: 'En proceso',
+                                    value: '${tickets.where((t) => t['estado'] == 'En proceso').length}',
+                                    color: const Color(0xFFF59E0B),
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                              ],
+                            ],
+                          ),
+                        ),
 
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              title,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                fontSize: 14.5,
-                                                fontWeight: FontWeight.w800,
-                                                color: Color(0xFF111827),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          _StatusChip(status: status),
-                                        ],
+                        // LISTA
+                        Expanded(
+                          child: ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
+                            itemCount: tickets.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+
+                              final t = tickets[index];
+
+                              final String id =
+                                  t['id_ticket'].toString();
+
+                              final String title =
+                                  t['titulo'] ?? '';
+
+                              final String status =
+                                  t['estado'] ?? '';
+
+                              final String prioridadColor =
+                                  t['prioridad_color'] ?? 'green';
+
+                              final Color pColor =
+                                  _priorityColor(prioridadColor);
+
+                              return Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(18),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.06),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 10,
+                                      height: 46,
+                                      decoration: BoxDecoration(
+                                        color: pColor,
+                                        borderRadius:
+                                            BorderRadius.circular(12),
                                       ),
-                                      const SizedBox(height: 6),
-                                      Row(
+                                    ),
+                                    const SizedBox(width: 12),
+
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  title,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontSize: 14.5,
+                                                    fontWeight: FontWeight.w800,
+                                                    color:
+                                                        Color(0xFF111827),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              _StatusChip(status: status),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 6),
                                           Text(
-                                            id,
+                                            'TCK-$id',
                                             style: const TextStyle(
                                               fontSize: 12.5,
                                               fontWeight: FontWeight.w700,
                                               color: Color(0xFF6B7280),
                                             ),
                                           ),
-                                          const SizedBox(width: 10),
-                                          Icon(
-                                            Icons.schedule,
-                                            size: 16,
-                                            color: Colors.black.withOpacity(
-                                              0.55,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '$minutes min',
-                                            style: const TextStyle(
-                                              fontSize: 12.5,
-                                              fontWeight: FontWeight.w700,
-                                              color: Color(0xFF374151),
-                                            ),
-                                          ),
                                         ],
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
-
-                                Icon(
-                                  Icons.chevron_right,
-                                  color: Colors.black.withOpacity(0.35),
-                                ),
-                              ],
-                            ),
+                              );
+                            },
                           ),
-                        );
-                      },
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                );
+              },
             ),
-          );
-        },
-      ),
 
-      // Botón para crear ticket
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: const Color(0xFF4CAF50),
         foregroundColor: Colors.white,
         onPressed: () {
-          Navigator.pushNamed(context, '/create-ticket');
+          Navigator.pushNamed(context, '/create-ticket')
+              .then((_) => _cargarTickets());
         },
         icon: const Icon(Icons.add),
         label: const Text('Crear ticket'),
       ),
     );
-  }
-
-  Color _priorityColor(String p) {
-    switch (p) {
-      case 'ROJO':
-        return const Color(0xFFEF4444);
-      case 'NARANJA':
-        return const Color(0xFFF59E0B);
-      default:
-        return const Color(0xFF4CAF50);
-    }
   }
 }
 

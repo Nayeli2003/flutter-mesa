@@ -1,14 +1,13 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../../widgets/app_drawer.dart';
 import 'package:http/http.dart' as http;
-
 // Para contentType en multipart (video/image)
 import 'package:http_parser/http_parser.dart';
+import '../../services/session.dart';
 
 class CreateTicketView extends StatefulWidget {
   const CreateTicketView({super.key});
@@ -26,6 +25,8 @@ class _CreateTicketViewState extends State<CreateTicketView> {
   int? sucursalId;
   String? categoriaSeleccionada;
   String? subtipoSeleccionado;
+
+  int? idTipoProblemaSeleccionado;
 
   // Evidencias (imágenes o videos)
   final List<PlatformFile> evidencias = [];
@@ -69,7 +70,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
   /// ==========================
   /// CATEGORÍAS + SUBTIPOS
   /// ==========================
-
+  /*--------------SE COMENTO PROVICIONAL-------------------
   final Map<String, List<String>> categorias = {
     "Facturación": [
       "Cambio de precio",
@@ -91,6 +92,30 @@ class _CreateTicketViewState extends State<CreateTicketView> {
     ],
     "Correo": ["Falla en el correo"],
     "Infraestructura": ["Falla de luz"],
+  };
+-----------SE COMETO PROVIICONAL--------------------*/
+  /// ==========================
+  /// MAPA TEMPORAL: SUBTIPO -> ID TIPO_PROBLEMA
+  /// (Luego lo reemplazamos por datos reales del backend)
+  /// ==========================
+  final Map<String, int> tipoProblemaIds = {
+    "Cambio de precio": 1,
+    "Error al facturar al cliente": 2,
+    "Código erróneo SAT": 3,
+    "Error en serie de factura": 4,
+    "Error al firmar por falla en el servidor de correos smtp": 5,
+    "Reimpresión de ticket": 6,
+
+    "Exceso de usuarios": 7,
+    "No cuenta con licencia": 8,
+    "Producto Talla/Color": 9,
+
+    "Error de conexión": 10,
+    "Falla Telmex": 11,
+    "Error en réplicas (Hamachi)": 12,
+
+    "Falla en el correo": 13,
+    "Falla de luz": 14,
   };
 
   @override
@@ -157,6 +182,13 @@ class _CreateTicketViewState extends State<CreateTicketView> {
   Future<void> _submit() async {
     final ok = _formKey.currentState?.validate() ?? false;
     if (!ok) return;
+    // Validamos que sí exista un id_tipo_problema seleccionado
+    if (idTipoProblemaSeleccionado == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona un tipo de problema')),
+      );
+      return;
+    }
 
     // 1. Mostrar indicador de carga (Loading)
     showDialog(
@@ -169,15 +201,16 @@ class _CreateTicketViewState extends State<CreateTicketView> {
 
     try {
       // 2. Configurar la petición (Ajusta la URL a tu API real)
-      final url = Uri.parse('https://tu-servidor.com/api/tickets');
+      final url = Uri.parse('http://127.0.0.1:8000/api/tickets');
       var request = http.MultipartRequest('POST', url);
+      request.headers['Authorization'] = 'Bearer ${Session.token}';
 
       // 3. Agregar campos de texto
       request.fields['titulo'] = asuntoController.text.trim();
       request.fields['descripcion'] = descripcionController.text.trim();
-      request.fields['id_sucursal'] = sucursalId.toString();
-      request.fields['categoria'] = categoriaSeleccionada!;
-      request.fields['tipo_problema'] = subtipoSeleccionado!;
+      // Mandamos el ID real del tipo de problema
+      request.fields['id_tipo_problema'] = idTipoProblemaSeleccionado
+          .toString();
 
       // 4. Agregar archivos (Evidencias)
       for (var f in evidencias) {
@@ -353,62 +386,30 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                     const SizedBox(height: 12),
 
                     /// SUCURSAL
-                    DropdownButtonFormField<int>(
-                      value: sucursalId,
-                      items: sucursales
+                    DropdownButtonFormField<String>(
+                      value: subtipoSeleccionado,
+                      items: tipoProblemaIds.keys
                           .map(
-                            (s) => DropdownMenuItem<int>(
-                              value: s['id'],
-                              child: Text(s['nombre']),
+                            (nombre) => DropdownMenuItem(
+                              value: nombre,
+                              child: Text(nombre),
                             ),
                           )
                           .toList(),
-                      onChanged: (v) => setState(() => sucursalId = v),
-                      decoration: const InputDecoration(labelText: 'Sucursal'),
-                      validator: (v) =>
-                          v == null ? 'Selecciona sucursal' : null,
-                    ),
-                    const SizedBox(height: 12),
-
-                    /// CATEGORÍA
-                      DropdownButtonFormField<String>(
-                        value: categoriaSeleccionada,
-                        items: categorias.keys
-                            .map((c) => DropdownMenuItem(
-                                  value: c,
-                                  child: Text(c),
-                                ))
-                            .toList(),
-                        onChanged: (v) {
-                          setState(() {
-                            categoriaSeleccionada = v;
-                            subtipoSeleccionado = null;
-                          });
-                        },
-                        decoration:
-                            const InputDecoration(labelText: 'Categoría'),
-                        validator: (v) =>
-                            v == null ? 'Selecciona categoría' : null,
+                      onChanged: (v) {
+                        setState(() {
+                          subtipoSeleccionado = v;
+                          idTipoProblemaSeleccionado = v != null
+                              ? tipoProblemaIds[v]
+                              : null;
+                        });
+                      },
+                      decoration: const InputDecoration(
+                        labelText: 'Tipo de problema',
                       ),
-                      const SizedBox(height: 12),
-
-                       /// SUBTIPO
-                      if (categoriaSeleccionada != null)
-                        DropdownButtonFormField<String>(
-                          value: subtipoSeleccionado,
-                          items: categorias[categoriaSeleccionada]!
-                              .map((s) => DropdownMenuItem(
-                                    value: s,
-                                    child: Text(s),
-                                  ))
-                              .toList(),
-                          onChanged: (v) =>
-                              setState(() => subtipoSeleccionado = v),
-                          decoration:
-                              const InputDecoration(labelText: 'Subtipo'),
-                          validator: (v) =>
-                              v == null ? 'Selecciona subtipo' : null,
-                        ),
+                      validator: (v) =>
+                          v == null ? 'Selecciona un tipo de problema' : null,
+                    ),
 
                     const SizedBox(height: 18),
 

@@ -238,17 +238,14 @@ class _TicketDetailViewState extends State<TicketDetailView> {
   }
 
   void _downloadTechnicalReport() {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text('Descargando memoria técnica...'),
-    ),
-  );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Descargando memoria técnica...')),
+    );
 
-  // Aquí después conectaremos backend
-  // Por ahora es solo simulación
-  //launchUrl(Uri.parse('$baseUrl/tickets/$id/pdf'));
-}
-
+    // Aquí después conectaremos backend
+    // Por ahora es solo simulación
+    //launchUrl(Uri.parse('$baseUrl/tickets/$id/pdf'));
+  }
 
   @override
   Widget build(BuildContext context) {
