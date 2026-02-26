@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../services/session.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:file_picker/file_picker.dart';
 
 class TicketDetailView extends StatefulWidget {
   const TicketDetailView({super.key});
@@ -23,7 +24,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
   Map<String, dynamic> _ticket = {};
   int? _idRol;
   String? _ticketId;
-  late String _status;
+  String _status = '';
 
   bool get _isAdmin => _idRol == 1;
   bool get _isTechnician => _idRol == 2;
@@ -93,6 +94,37 @@ class _TicketDetailViewState extends State<TicketDetailView> {
       setState(() {
         _mensajes = jsonDecode(response.body);
       });
+    }
+  }
+
+  Future<void> _sendFile(PlatformFile file) async {
+    if (_ticketId == null) return;
+
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse('http://127.0.0.1:8000/api/tickets/$_ticketId/mensajes'),
+    );
+
+    request.headers['Authorization'] = 'Bearer ${Session.token}';
+
+    if (kIsWeb) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'archivo',
+          file.bytes!,
+          filename: file.name,
+        ),
+      );
+    } else {
+      request.files.add(
+        await http.MultipartFile.fromPath('archivo', file.path!),
+      );
+    }
+
+    var response = await request.send();
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      await _loadMensajes();
     }
   }
 
@@ -244,13 +276,37 @@ class _TicketDetailViewState extends State<TicketDetailView> {
 
   @override
   Widget build(BuildContext context) {
-    final String id = (_ticket['id'] ?? '').toString();
-    final String title = (_ticket['title'] ?? '').toString();
-    final String description = (_ticket['description'] ?? '').toString();
-    final String branch = (_ticket['branch'] ?? '').toString();
-    final String category = (_ticket['category'] ?? '').toString();
-    final String priority = (_ticket['priority'] ?? 'VERDE').toString();
-    final String createdAt = (_ticket['createdAt'] ?? '').toString();
+    final String id = (_ticket['id_ticket'] ?? '—').toString();
+
+    final String title =
+        (_ticket['titulo']?.toString().trim().isNotEmpty ?? false)
+        ? _ticket['titulo']
+        : 'Sin título';
+
+    final String description =
+        (_ticket['descripcion']?.toString().trim().isNotEmpty ?? false)
+        ? _ticket['descripcion']
+        : 'Sin descripción disponible.';
+
+    final String branch =
+        (_ticket['sucursal']?.toString().trim().isNotEmpty ?? false)
+        ? _ticket['sucursal']
+        : 'Sucursal no definida';
+
+    final String category =
+        (_ticket['tipo_problema']?.toString().trim().isNotEmpty ?? false)
+        ? _ticket['tipo_problema']
+        : 'Sin categoría';
+
+    final String priority =
+        (_ticket['prioridad']?.toString().trim().isNotEmpty ?? false)
+        ? _ticket['prioridad']
+        : 'VERDE';
+
+    final String createdAt =
+        (_ticket['fecha_creacion']?.toString().trim().isNotEmpty ?? false)
+        ? _ticket['fecha_creacion']
+        : '';
 
     final evidences = List<Map<String, dynamic>>.from(
       (_ticket['evidences'] ?? []).map<Map<String, dynamic>>(
@@ -882,7 +938,9 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                     itemCount: _mensajes.length,
                     itemBuilder: (context, index) {
                       final m = _mensajes[index];
-                      final bool isMe = m['user']['id'] == Session.idUsuario;
+
+                      final bool isMe =
+                          m['usuario']['id_usuario'] == Session.idUsuario;
 
                       return Align(
                         alignment: isMe
@@ -901,12 +959,40 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                                 : const Color(0xFFE5E7EB),
                             borderRadius: BorderRadius.circular(18),
                           ),
-                          child: Text(
-                            m['mensaje'],
-                            style: TextStyle(
-                              color: isMe ? Colors.white : Colors.black87,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (m['mensaje'] != null &&
+                                  m['mensaje'].toString().isNotEmpty)
+                                Text(
+                                  m['mensaje'],
+                                  style: TextStyle(
+                                    color: isMe ? Colors.white : Colors.black87,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+
+                              if (m['archivo'] != null &&
+                                  m['archivo'].toString().isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 6),
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      // Aquí después podemos abrir o descargar archivo
+                                    },
+                                    child: Text(
+                                      "📎 Archivo adjunto",
+                                      style: TextStyle(
+                                        color: isMe
+                                            ? Colors.white70
+                                            : Colors.blue,
+                                        fontWeight: FontWeight.w700,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       );
@@ -926,15 +1012,25 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                       /// 📎 BOTÓN SUBIR ARCHIVO
                       IconButton(
                         icon: const Icon(Icons.attach_file),
-                        onPressed: () {
-                          print("Subir imagen/video");
+                        onPressed: () async {
+                          final result = await FilePicker.platform.pickFiles(
+                            allowMultiple: false,
+                            type: FileType.any,
+                          );
+
+                          if (result == null) return;
+
+                          final file = result.files.first;
+
+                          await _sendFile(file);
                         },
                       ),
 
                       /// ✍️ INPUT
-                      const Expanded(
+                      Expanded(
                         child: TextField(
-                          decoration: InputDecoration(
+                          controller: _commentController,
+                          decoration: const InputDecoration(
                             hintText: "Escribe un mensaje...",
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.all(

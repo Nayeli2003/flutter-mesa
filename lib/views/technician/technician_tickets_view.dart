@@ -67,8 +67,12 @@ class _TechnicianTicketsViewState extends State<TechnicianTicketsView> {
 
   // YA CONECTADO AL BACKEND
   Future<void> _loadTickets() async {
+    if (Session.token == null) {
+      setState(() => _loading = false);
+      return;
+    }
     final res = await http.get(
-      Uri.parse('http://127.0.0.1:8000/api/technician/tickets'),
+      Uri.parse('http://127.0.0.1:8000/api/mis-tickets'),
       headers: {
         'Authorization': 'Bearer ${Session.token}',
         'Accept': 'application/json',
