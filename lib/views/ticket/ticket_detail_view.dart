@@ -2,8 +2,9 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-
-enum TicketUserRole { admin, tecnico, sucursal }
+import '../../services/session.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class TicketDetailView extends StatefulWidget {
   const TicketDetailView({super.key});
@@ -15,16 +16,18 @@ class TicketDetailView extends StatefulWidget {
 class _TicketDetailViewState extends State<TicketDetailView> {
   final _commentController = TextEditingController();
 
+  List<dynamic> _mensajes = [];
+
   bool _initialized = false;
 
   Map<String, dynamic> _ticket = {};
-  late TicketUserRole _role;
+  int? _idRol;
   String? _ticketId;
   late String _status;
 
-  bool get _isAdmin => _role == TicketUserRole.admin;
-  bool get _isTechnician => _role == TicketUserRole.tecnico;
-  bool get _isBranch => _role == TicketUserRole.sucursal;
+  bool get _isAdmin => _idRol == 1;
+  bool get _isTechnician => _idRol == 2;
+  bool get _isBranch => _idRol == 3;
 
   final List<String> _technicians = ['Juan', 'Pedro', 'Luis'];
 
@@ -34,44 +37,64 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     super.dispose();
   }
 
- @override
-void didChangeDependencies() {
-  super.didChangeDependencies();
-  if (_initialized) return;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialized) return;
 
-  final args = ModalRoute.of(context)?.settings.arguments;
+    final args = ModalRoute.of(context)?.settings.arguments;
 
-  if (args is String) {
-    _ticketId = args;
-    _loadTicket();
+    if (args is String) {
+      _ticketId = args;
+      _loadTicket();
+    }
+
+    _initialized = true;
   }
 
-  _initialized = true;
-}///aqui
+  ///aqui
+  /// backend
+  Future<void> _loadTicket() async {
+    if (_ticketId == null) return;
 
-Future<void> _loadTicket() async {
-  print("ID recibido: $_ticketId");
+    final response = await http.get(
+      Uri.parse('http://127.0.0.1:8000/api/tickets/$_ticketId'),
+      headers: {
+        'Authorization': 'Bearer ${Session.token}',
+        'Accept': 'application/json',
+      },
+    );
 
-  setState(() {
-    _ticket = {
-      'id': _ticketId,
-      'title': 'Ticket cargado correctamente',
-      'description': 'Ya no es fake.',
-      'branch': 'Sucursal',
-      'category': 'Soporte',
-      'priority': 'ROJO',
-      'status': 'Abierto',
-      'createdAt': '2026-01-14',
-      'role': 'tecnico',
-      'evidences': [],
-      'comments': [],
-    };
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
 
-    _status = _ticket['status'];
-    _role = TicketUserRole.tecnico;
-  });
-}
+      setState(() {
+        _ticket = data;
+        _status = data['status'];
+        _idRol = Session.idRol;
+      });
 
+      await _loadMensajes();
+    }
+  }
+
+  Future<void> _loadMensajes() async {
+    if (_ticketId == null) return;
+
+    final response = await http.get(
+      Uri.parse('http://127.0.0.1:8000/api/tickets/$_ticketId/mensajes'),
+      headers: {
+        'Authorization': 'Bearer ${Session.token}',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      setState(() {
+        _mensajes = jsonDecode(response.body);
+      });
+    }
+  }
 
   Color _priorityColor(String p) {
     switch (p) {
@@ -84,21 +107,21 @@ Future<void> _loadTicket() async {
     }
   }
 
-  Future<void> _addComment({required String by, required String text}) async {
-    final List<Map<String, String>> comments = List<Map<String, String>>.from(
-      (_ticket['comments'] ?? []).map<Map<String, String>>(
-        (e) => {
-          'by': (e['by'] ?? '').toString(),
-          'text': (e['text'] ?? '').toString(),
-        },
-      ),
+  Future<void> _addComment({required String text}) async {
+    if (_ticketId == null) return;
+
+    final response = await http.post(
+      Uri.parse('http://127.0.0.1:8000/api/tickets/$_ticketId/mensajes'),
+      headers: {
+        'Authorization': 'Bearer ${Session.token}',
+        'Accept': 'application/json',
+      },
+      body: {'mensaje': text},
     );
 
-    comments.add({'by': by, 'text': text});
-
-    setState(() {
-      _ticket['comments'] = comments;
-    });
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      await _loadMensajes();
+    }
   }
 
   Future<String?> _askTextDialog({
@@ -161,11 +184,7 @@ Future<void> _loadTicket() async {
         _ticket['closedSolution'] = solution;
       });
 
-      await _addComment(
-        by: 'Técnico',
-        text: 'Ticket cerrado. Solución: $solution',
-      );
-
+      await _addComment(text: 'Ticket cerrado. Solución: $solution');
       return;
     }
 
@@ -185,7 +204,6 @@ Future<void> _loadTicket() async {
       });
 
       await _addComment(
-        by: 'Técnico',
         text: 'Ticket reabierto a "$newStatus". Motivo: $reason',
       );
 
@@ -199,10 +217,7 @@ Future<void> _loadTicket() async {
         _ticket['status'] = newStatus;
       });
 
-      await _addComment(
-        by: _isAdmin ? 'Administrador' : 'Técnico',
-        text: 'Estado actualizado a "$newStatus".',
-      );
+      await _addComment(text: 'Estado actualizado a "$newStatus".');
 
       return;
     }
@@ -753,10 +768,7 @@ Future<void> _loadTicket() async {
                                             .trim();
                                         if (text.isEmpty) return;
 
-                                        await _addComment(
-                                          by: 'Técnico',
-                                          text: text,
-                                        );
+                                        await _addComment(text: text);
                                         _commentController.clear();
                                       },
                                       icon: const Icon(Icons.send),
@@ -814,10 +826,7 @@ Future<void> _loadTicket() async {
                                               .trim();
                                           if (text.isEmpty) return;
 
-                                          await _addComment(
-                                            by: 'Sucursal',
-                                            text: text,
-                                          );
+                                          await _addComment(text: text);
                                           _commentController.clear();
                                         },
                                         icon: const Icon(Icons.send),
@@ -870,9 +879,10 @@ Future<void> _loadTicket() async {
                 Expanded(
                   child: ListView.builder(
                     padding: const EdgeInsets.all(20),
-                    itemCount: 6,
+                    itemCount: _mensajes.length,
                     itemBuilder: (context, index) {
-                      final bool isMe = index % 2 == 0;
+                      final m = _mensajes[index];
+                      final bool isMe = m['user']['id'] == Session.idUsuario;
 
                       return Align(
                         alignment: isMe
@@ -892,7 +902,7 @@ Future<void> _loadTicket() async {
                             borderRadius: BorderRadius.circular(18),
                           ),
                           child: Text(
-                            isMe ? "Mensaje mío" : "Mensaje del otro usuario",
+                            m['mensaje'],
                             style: TextStyle(
                               color: isMe ? Colors.white : Colors.black87,
                               fontWeight: FontWeight.w600,
@@ -942,14 +952,23 @@ Future<void> _loadTicket() async {
                       const SizedBox(width: 8),
 
                       /// 📤 BOTÓN ENVIAR
-                      Container(
-                        height: 48,
-                        width: 48,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF2563EB),
-                          shape: BoxShape.circle,
+                      GestureDetector(
+                        onTap: () async {
+                          final text = _commentController.text.trim();
+                          if (text.isEmpty) return;
+
+                          await _addComment(text: text);
+                          _commentController.clear();
+                        },
+                        child: Container(
+                          height: 48,
+                          width: 48,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF2563EB),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.send, color: Colors.white),
                         ),
-                        child: const Icon(Icons.send, color: Colors.white),
                       ),
                     ],
                   ),

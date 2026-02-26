@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../widgets/app_drawer.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../../services/session.dart';
 
 enum TicketStatus { asignado, enProceso, cerrado }
+
 enum TicketPriority { verde, naranja, rojo }
 
 class TicketModel {
@@ -9,7 +13,7 @@ class TicketModel {
   final String titulo;
   final String sucursal;
   final String branchId; // ID Sucursal
-  final DateTime fecha;  // Fecha
+  final DateTime fecha; // Fecha
   final TicketStatus status;
   final TicketPriority priority;
 
@@ -41,6 +45,9 @@ class TechnicianTicketsView extends StatefulWidget {
 class _TechnicianTicketsViewState extends State<TechnicianTicketsView> {
   final TextEditingController _searchCtrl = TextEditingController();
 
+  List<TicketModel> _tickets = [];
+  bool _loading = true;
+
   DateTime? _fromDate;
   DateTime? _toDate;
 
@@ -50,38 +57,62 @@ class _TechnicianTicketsViewState extends State<TechnicianTicketsView> {
     super.dispose();
   }
 
+  @override
+  void initState() {
+    super.initState();
+    _loadTickets();
+  }
+
   bool get _isClosedScreen => widget.statusFilter == TicketStatus.cerrado;
 
-  // Datos de ejemplo (luego se conecta al backend)
-  List<TicketModel> _ticketsFake() => [
-        TicketModel(
-          folio: 'TK-001',
-          titulo: 'No abre sistema',
-          sucursal: 'Sucursal Centro',
-          branchId: 'SUC-001',
-          fecha: DateTime(2026, 1, 14, 10, 30),
-          status: TicketStatus.asignado,
-          priority: TicketPriority.rojo,
-        ),
-        TicketModel(
-          folio: 'TK-002',
-          titulo: 'Impresora no imprime',
-          sucursal: 'Sucursal Norte',
-          branchId: 'SUC-002',
-          fecha: DateTime(2026, 1, 14, 13, 10),
-          status: TicketStatus.enProceso,
-          priority: TicketPriority.naranja,
-        ),
-        TicketModel(
-          folio: 'TK-003',
-          titulo: 'Actualización aplicada',
-          sucursal: 'Sucursal Sur',
-          branchId: 'SUC-003',
-          fecha: DateTime(2026, 1, 13, 9, 5),
-          status: TicketStatus.cerrado,
-          priority: TicketPriority.verde,
-        ),
-      ];
+  // YA CONECTADO AL BACKEND
+  Future<void> _loadTickets() async {
+    final res = await http.get(
+      Uri.parse('http://127.0.0.1:8000/api/technician/tickets'),
+      headers: {
+        'Authorization': 'Bearer ${Session.token}',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (!mounted) return;
+
+    if (res.statusCode == 200) {
+      final List data = jsonDecode(res.body);
+
+      setState(() {
+        _tickets = data.map((e) {
+          return TicketModel(
+            folio: e['folio'].toString(),
+            titulo: e['titulo'].toString(),
+            sucursal: e['sucursal'].toString(),
+            branchId: e['branch_id'].toString(),
+            fecha: DateTime.parse(e['created_at']),
+            status: _mapStatus(e['status'].toString()),
+            priority: _mapPriority(e['priority'].toString()),
+          );
+        }).toList();
+
+        _loading = false;
+      });
+    } else {
+      setState(() => _loading = false);
+    }
+  }
+
+  TicketStatus _mapStatus(String s) {
+    final v = s.toLowerCase();
+    if (v.contains('cerr')) return TicketStatus.cerrado;
+    if (v.contains('proceso')) return TicketStatus.enProceso;
+    return TicketStatus.asignado;
+  }
+
+  TicketPriority _mapPriority(String p) {
+    final v = p.toLowerCase();
+    if (v.contains('rojo')) return TicketPriority.rojo;
+    if (v.contains('naranja')) return TicketPriority.naranja;
+    return TicketPriority.verde;
+  }
 
   Future<void> _pickFromDate() async {
     final picked = await showDatePicker(
@@ -115,11 +146,17 @@ class _TechnicianTicketsViewState extends State<TechnicianTicketsView> {
 
   @override
   Widget build(BuildContext context) {
-    final all = _ticketsFake();
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    final all = _tickets;
 
     // 1) filtro por status según pantalla
     final base = widget.statusFilter == null
-        ? all.where((t) => t.status != TicketStatus.cerrado).toList() // Dashboard: no cerrados
+        ? all
+              .where((t) => t.status != TicketStatus.cerrado)
+              .toList() // Dashboard: no cerrados
         : all.where((t) => t.status == widget.statusFilter).toList();
 
     // 2) filtro buscador (solo en cerrados)
@@ -165,7 +202,9 @@ class _TechnicianTicketsViewState extends State<TechnicianTicketsView> {
 
           return Center(
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: isWide ? 1100 : double.infinity),
+              constraints: BoxConstraints(
+                maxWidth: isWide ? 1100 : double.infinity,
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -245,9 +284,12 @@ class _ClosedFiltersBar extends StatelessWidget {
                     controller: searchCtrl,
                     onChanged: (_) => onChanged(),
                     decoration: InputDecoration(
-                      labelText: 'Buscar (folio, título, sucursal, id sucursal)',
+                      labelText:
+                          'Buscar (folio, título, sucursal, id sucursal)',
                       prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                   ),
                 ),
@@ -321,19 +363,11 @@ class _TicketsCards extends StatelessWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               // Usa tu ticket_detail_view.dart (ajusta la ruta si ya tienes otra)
-              Navigator.pushNamed(context, '/ticket-detail', arguments: {
-                'id': t.folio,
-                'title': t.titulo,
-                'branch': t.sucursal,
-                'priority': _priorityText(t.priority).toUpperCase(),
-                'status': _statusText(t.status),
-                'createdAt': _fmtDate(t.fecha),
-                'role': 'tecnico',
-                'category': 'Soporte',
-                'description': 'Detalle pendiente de backend',
-                'evidences': <Map<String, dynamic>>[],
-                'comments': <Map<String, String>>[],
-              });
+              Navigator.pushNamed(
+                context,
+                '/ticket-detail',
+                arguments: t.folio,
+              );
             },
           ),
         );
@@ -363,7 +397,7 @@ class _TicketsTable extends StatelessWidget {
             DataColumn(label: Text('Título')),
             DataColumn(label: Text('ID Sucursal')), // nuevo
             DataColumn(label: Text('Sucursal')),
-            DataColumn(label: Text('Fecha')),       // nuevo
+            DataColumn(label: Text('Fecha')), // nuevo
             DataColumn(label: Text('Estado')),
             DataColumn(label: Text('Prioridad')),
             DataColumn(label: Text('Acción')),
@@ -381,19 +415,11 @@ class _TicketsTable extends StatelessWidget {
                 DataCell(
                   TextButton(
                     onPressed: () {
-                      Navigator.pushNamed(context, '/ticket-detail', arguments: {
-                        'id': t.folio,
-                        'title': t.titulo,
-                        'branch': t.sucursal,
-                        'priority': _priorityText(t.priority).toUpperCase(),
-                        'status': _statusText(t.status),
-                        'createdAt': _fmtDate(t.fecha),
-                        'role': 'tecnico',
-                        'category': 'Soporte',
-                        'description': 'Detalle pendiente de backend',
-                        'evidences': <Map<String, dynamic>>[],
-                        'comments': <Map<String, String>>[],
-                      });
+                      Navigator.pushNamed(
+                        context,
+                        '/ticket-detail',
+                        arguments: t.folio,
+                      );
                     },
                     child: const Text('Ver'),
                   ),
