@@ -17,9 +17,9 @@ class _TicketDetailViewState extends State<TicketDetailView> {
 
   bool _initialized = false;
 
-  late Map<String, dynamic> _ticket;
+  Map<String, dynamic> _ticket = {};
   late TicketUserRole _role;
-
+  String? _ticketId;
   late String _status;
 
   bool get _isAdmin => _role == TicketUserRole.admin;
@@ -34,64 +34,44 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     super.dispose();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_initialized) return;
+ @override
+void didChangeDependencies() {
+  super.didChangeDependencies();
+  if (_initialized) return;
 
-    final args = ModalRoute.of(context)?.settings.arguments;
+  final args = ModalRoute.of(context)?.settings.arguments;
 
-    _ticket = (args is Map<String, dynamic>)
-        ? Map<String, dynamic>.from(args)
-        : <String, dynamic>{
-            'id': 'TCK-101',
-            'title': 'Sin internet en recepción',
-            'description':
-                'No hay conexión en el área de recepción. Se reinició el módem pero sigue sin internet.',
-            'branch': 'Sucursal Centro',
-            'category': 'Internet / Red',
-            'priority': 'ROJO',
-            'status': 'Abierto',
-            'createdAt': '2026-01-14 09:20',
-            'role': 'sucursal',
-            'assignedTo': null,
-            'evidences': <Map<String, dynamic>>[
-              {
-                'type': 'image',
-                'name': 'foto_1.jpg',
-                'path': null,
-                'bytes': null,
-              },
-              {
-                'type': 'video',
-                'name': 'video_1.mp4',
-                'path': null,
-                'bytes': null,
-              },
-            ],
-            'comments': <Map<String, String>>[
-              {'by': 'Sucursal', 'text': 'Se reinició el módem y sigue igual.'},
-              {'by': 'Técnico', 'text': 'Se revisará el cableado y el router.'},
-            ],
-          };
-
-    final roleString = (_ticket['role'] ?? 'sucursal').toString();
-
-    switch (roleString) {
-      case 'admin':
-        _role = TicketUserRole.admin;
-        break;
-      case 'tecnico':
-        _role = TicketUserRole.tecnico;
-        break;
-      default:
-        _role = TicketUserRole.sucursal;
-    }
-
-    _status = (_ticket['status'] ?? 'Abierto').toString();
-
-    _initialized = true;
+  if (args is String) {
+    _ticketId = args;
+    _loadTicket();
   }
+
+  _initialized = true;
+}///aqui
+
+Future<void> _loadTicket() async {
+  print("ID recibido: $_ticketId");
+
+  setState(() {
+    _ticket = {
+      'id': _ticketId,
+      'title': 'Ticket cargado correctamente',
+      'description': 'Ya no es fake.',
+      'branch': 'Sucursal',
+      'category': 'Soporte',
+      'priority': 'ROJO',
+      'status': 'Abierto',
+      'createdAt': '2026-01-14',
+      'role': 'tecnico',
+      'evidences': [],
+      'comments': [],
+    };
+
+    _status = _ticket['status'];
+    _role = TicketUserRole.tecnico;
+  });
+}
+
 
   Color _priorityColor(String p) {
     switch (p) {
@@ -274,551 +254,715 @@ class _TicketDetailViewState extends State<TicketDetailView> {
         ? _ticket['assignedTo']
         : null;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F3),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: Text(
-          id,
-          style: const TextStyle(
-            color: Color(0xFF1F2937),
-            fontWeight: FontWeight.bold,
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF3F4F3),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          title: Text(
+            id,
+            style: const TextStyle(
+              color: Color(0xFF1F2937),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          centerTitle: true,
+          iconTheme: const IconThemeData(color: Color(0xFF1F2937)),
+          bottom: const TabBar(
+            labelColor: Color(0xFF111827),
+            indicatorColor: Color(0xFF111827),
+            tabs: [
+              Tab(text: "Detalle"),
+              Tab(text: "Chat"),
+            ],
           ),
         ),
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Color(0xFF1F2937)),
-      ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final bool isDesktop = width >= 1024;
-          final bool isTablet = width >= 600 && width < 1024;
+        body: TabBarView(
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                final bool isDesktop = width >= 1024;
+                final bool isTablet = width >= 600 && width < 1024;
 
-          final double contentMaxWidth = isDesktop
-              ? 900
-              : (isTablet ? 650 : double.infinity);
+                final double contentMaxWidth = isDesktop
+                    ? 900
+                    : (isTablet ? 650 : double.infinity);
 
-          return Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: contentMaxWidth),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    /// ================= HEADER =================
-                    Container(
-                      width: double.infinity,
+                return Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: contentMaxWidth),
+                    child: SingleChildScrollView(
                       padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: pColor.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(14),
+                          /// ================= HEADER =================
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(18),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.08),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 5),
                                 ),
-                                child: Icon(
-                                  Icons.confirmation_number,
-                                  color: pColor,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  title,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w900,
-                                    color: Color(0xFF111827),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              _StatusChip(status: _status),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              _Pill(
-                                icon: Icons.store,
-                                text: branch,
-                                color: const Color(0xFF4CAF50),
-                              ),
-                              _Pill(
-                                icon: Icons.category,
-                                text: category,
-                                color: const Color(0xFF2563EB),
-                              ),
-                              _Pill(
-                                icon: Icons.flag,
-                                text: priority,
-                                color: pColor,
-                              ),
-                              if (createdAt.isNotEmpty)
-                                _Pill(
-                                  icon: Icons.schedule,
-                                  text: createdAt,
-                                  color: const Color(0xFF6B7280),
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    /// ================= DESCRIPCIÓN =================
-                    _Card(
-                      title: 'Descripción',
-                      child: Text(
-                        description,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          height: 1.4,
-                          color: Color(0xFF374151),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    /// ================= EVIDENCIAS =================
-                    _Card(
-                      title: 'Evidencias',
-                      trailing: Text(
-                        '${evidences.length}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF111827),
-                        ),
-                      ),
-                      child: evidences.isEmpty
-                          ? const Text(
-                              'No hay evidencias adjuntas.',
-                              style: TextStyle(
-                                color: Color(0xFF6B7280),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            )
-                          : Column(
-                              children: [
-                                ...evidences.map((e) {
-                                  final type = (e['type'] ?? '').toString();
-                                  final name = (e['name'] ?? '').toString();
-                                  final path = e['path'];
-                                  final bytes = e['bytes'];
-
-                                  final bool isImage = type == 'image';
-                                  final bool isVideo = type == 'video';
-
-                                  return Container(
-                                    margin: const EdgeInsets.only(top: 10),
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF9FAFB),
-                                      borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(
-                                        color: const Color(0xFFE5E7EB),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        if (isImage)
-                                          ClipRRect(
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                            child: kIsWeb
-                                                ? (bytes is Uint8List
-                                                      ? Image.memory(
-                                                          bytes,
-                                                          width: 44,
-                                                          height: 44,
-                                                          fit: BoxFit.cover,
-                                                        )
-                                                      : _emptyPreview())
-                                                : (path != null
-                                                      ? Image.file(
-                                                          File(path),
-                                                          width: 44,
-                                                          height: 44,
-                                                          fit: BoxFit.cover,
-                                                        )
-                                                      : _emptyPreview()),
-                                          )
-                                        else
-                                          Container(
-                                            width: 44,
-                                            height: 44,
-                                            decoration: BoxDecoration(
-                                              color: isVideo
-                                                  ? const Color(
-                                                      0xFFF59E0B,
-                                                    ).withOpacity(0.15)
-                                                  : const Color(
-                                                      0xFF4CAF50,
-                                                    ).withOpacity(0.15),
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                            ),
-                                            child: Icon(
-                                              isVideo
-                                                  ? Icons.videocam
-                                                  : Icons.insert_drive_file,
-                                              color: isVideo
-                                                  ? const Color(0xFFF59E0B)
-                                                  : const Color(0xFF4CAF50),
-                                            ),
-                                          ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            name,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              color: Color(0xFF111827),
-                                            ),
-                                          ),
-                                        ),
-                                        TextButton(
-                                          onPressed: () {},
-                                          child: const Text('Ver'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }),
                               ],
                             ),
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    /// ================= HISTORIAL =================
-                    _Card(
-                      title: 'Historial',
-                      trailing: Text(
-                        '${comments.length}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF111827),
-                        ),
-                      ),
-                      child: comments.isEmpty
-                          ? const Text(
-                              'Sin comentarios.',
-                              style: TextStyle(
-                                color: Color(0xFF6B7280),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            )
-                          : Column(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                ...comments.map((c) {
-                                  final by = (c['by'] ?? '').toString();
-                                  final text = (c['text'] ?? '').toString();
-                                  return Container(
-                                    width: double.infinity,
-                                    margin: const EdgeInsets.only(top: 10),
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(
-                                        color: const Color(0xFFE5E7EB),
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 44,
+                                      height: 44,
+                                      decoration: BoxDecoration(
+                                        color: pColor.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: Icon(
+                                        Icons.confirmation_number,
+                                        color: pColor,
                                       ),
                                     ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          by,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w900,
-                                            color: Color(0xFF111827),
-                                          ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        title,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w900,
+                                          color: Color(0xFF111827),
                                         ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          text,
-                                          style: const TextStyle(
-                                            color: Color(0xFF374151),
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
+                                      ),
                                     ),
-                                  );
-                                }),
+                                    const SizedBox(width: 8),
+                                    _StatusChip(status: _status),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    _Pill(
+                                      icon: Icons.store,
+                                      text: branch,
+                                      color: const Color(0xFF4CAF50),
+                                    ),
+                                    _Pill(
+                                      icon: Icons.category,
+                                      text: category,
+                                      color: const Color(0xFF2563EB),
+                                    ),
+                                    _Pill(
+                                      icon: Icons.flag,
+                                      text: priority,
+                                      color: pColor,
+                                    ),
+                                    if (createdAt.isNotEmpty)
+                                      _Pill(
+                                        icon: Icons.schedule,
+                                        text: createdAt,
+                                        color: const Color(0xFF6B7280),
+                                      ),
+                                  ],
+                                ),
                               ],
                             ),
-                    ),
+                          ),
 
-                    const SizedBox(height: 14),
+                          const SizedBox(height: 14),
 
-                    // ================= MEMORIA TÉCNICA PDF =================
-                    if (_status == 'Cerrado' && (_isAdmin || _isTechnician))
-                      _Card(
-                        title: 'Memoria técnica',
-                        child: SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF111827),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                          /// ================= DESCRIPCIÓN =================
+                          _Card(
+                            title: 'Descripción',
+                            child: Text(
+                              description,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                height: 1.4,
+                                color: Color(0xFF374151),
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                            onPressed: () {
-                              _downloadTechnicalReport();
-                            },
-                            icon: const Icon(Icons.picture_as_pdf),
-                            label: const Text(
-                              'Descargar memoria técnica (PDF)',
-                              style: TextStyle(fontWeight: FontWeight.w800),
-                            ),
                           ),
-                        ),
-                      ),
 
-                    /// ================= ACCIONES ADMIN =================
-                    if (_isAdmin)
-                      _Card(
-                        title: 'Acciones del administrador',
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            DropdownButtonFormField<String>(
-                              value: assignedValue,
-                              items: _technicians
-                                  .map(
-                                    (t) => DropdownMenuItem(
-                                      value: t,
-                                      child: Text(t),
+                          const SizedBox(height: 14),
+
+                          /// ================= EVIDENCIAS =================
+                          _Card(
+                            title: 'Evidencias',
+                            trailing: Text(
+                              '${evidences.length}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF111827),
+                              ),
+                            ),
+                            child: evidences.isEmpty
+                                ? const Text(
+                                    'No hay evidencias adjuntas.',
+                                    style: TextStyle(
+                                      color: Color(0xFF6B7280),
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   )
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  _ticket['assignedTo'] = value;
-                                });
-                              },
-                              decoration: InputDecoration(
-                                labelText: 'Asignar técnico',
-                                prefixIcon: const Icon(Icons.person),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            DropdownButtonFormField<String>(
-                              value: _status,
-                              items: const [
-                                DropdownMenuItem(
-                                  value: 'Abierto',
-                                  child: Text('Abierto'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'En proceso',
-                                  child: Text('En proceso'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'Cerrado',
-                                  child: Text('Cerrado'),
-                                ),
-                              ],
-                              onChanged: (value) async {
-                                if (value == null) return;
-                                await _changeStatus(value);
-                              },
-                              decoration: InputDecoration(
-                                labelText: 'Cambiar estado',
-                                prefixIcon: const Icon(Icons.swap_horiz),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                                : Column(
+                                    children: [
+                                      ...evidences.map((e) {
+                                        final type = (e['type'] ?? '')
+                                            .toString();
+                                        final name = (e['name'] ?? '')
+                                            .toString();
+                                        final path = e['path'];
+                                        final bytes = e['bytes'];
 
-                    /// ================= ACCIONES TÉCNICO =================
-                    if (_isTechnician)
-                      _Card(
-                        title: 'Acciones del técnico',
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            DropdownButtonFormField<String>(
-                              value: _status,
-                              items: const [
-                                DropdownMenuItem(
-                                  value: 'Abierto',
-                                  child: Text('Abierto'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'En proceso',
-                                  child: Text('En proceso'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'Cerrado',
-                                  child: Text('Cerrado'),
-                                ),
-                              ],
-                              onChanged: (value) async {
-                                if (value == null) return;
-                                await _changeStatus(value);
-                              },
-                              decoration: InputDecoration(
-                                labelText: 'Cambiar estado',
-                                prefixIcon: const Icon(Icons.swap_horiz),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            TextField(
-                              controller: _commentController,
-                              maxLines: 3,
-                              decoration: InputDecoration(
-                                labelText: 'Agregar comentario',
-                                prefixIcon: const Icon(Icons.comment),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 46,
-                              child: ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF4CAF50),
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
+                                        final bool isImage = type == 'image';
+                                        final bool isVideo = type == 'video';
+
+                                        return Container(
+                                          margin: const EdgeInsets.only(
+                                            top: 10,
+                                          ),
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF9FAFB),
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
+                                            border: Border.all(
+                                              color: const Color(0xFFE5E7EB),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              if (isImage)
+                                                ClipRRect(
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                  child: kIsWeb
+                                                      ? (bytes is Uint8List
+                                                            ? Image.memory(
+                                                                bytes,
+                                                                width: 44,
+                                                                height: 44,
+                                                                fit: BoxFit
+                                                                    .cover,
+                                                              )
+                                                            : _emptyPreview())
+                                                      : (path != null
+                                                            ? Image.file(
+                                                                File(path),
+                                                                width: 44,
+                                                                height: 44,
+                                                                fit: BoxFit
+                                                                    .cover,
+                                                              )
+                                                            : _emptyPreview()),
+                                                )
+                                              else
+                                                Container(
+                                                  width: 44,
+                                                  height: 44,
+                                                  decoration: BoxDecoration(
+                                                    color: isVideo
+                                                        ? const Color(
+                                                            0xFFF59E0B,
+                                                          ).withOpacity(0.15)
+                                                        : const Color(
+                                                            0xFF4CAF50,
+                                                          ).withOpacity(0.15),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          10,
+                                                        ),
+                                                  ),
+                                                  child: Icon(
+                                                    isVideo
+                                                        ? Icons.videocam
+                                                        : Icons
+                                                              .insert_drive_file,
+                                                    color: isVideo
+                                                        ? const Color(
+                                                            0xFFF59E0B,
+                                                          )
+                                                        : const Color(
+                                                            0xFF4CAF50,
+                                                          ),
+                                                  ),
+                                                ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Text(
+                                                  name,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.w800,
+                                                    color: Color(0xFF111827),
+                                                  ),
+                                                ),
+                                              ),
+                                              TextButton(
+                                                onPressed: () {},
+                                                child: const Text('Ver'),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }),
+                                    ],
                                   ),
-                                ),
-                                onPressed: () async {
-                                  final text = _commentController.text.trim();
-                                  if (text.isEmpty) return;
+                          ),
 
-                                  await _addComment(by: 'Técnico', text: text);
-                                  _commentController.clear();
-                                },
-                                icon: const Icon(Icons.send),
-                                label: const Text(
-                                  'Enviar comentario',
-                                  style: TextStyle(fontWeight: FontWeight.w800),
-                                ),
+                          const SizedBox(height: 14),
+
+                          /// ================= HISTORIAL =================
+                          _Card(
+                            title: 'Historial',
+                            trailing: Text(
+                              '${comments.length}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF111827),
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-
-                    /// ================= ACCIONES SUCURSAL =================
-                    if (_isBranch)
-                      _Card(
-                        title: 'Acciones de sucursal',
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (canWriteComment) ...[
-                              TextField(
-                                controller: _commentController,
-                                maxLines: 3,
-                                decoration: InputDecoration(
-                                  labelText: 'Agregar comentario',
-                                  prefixIcon: const Icon(Icons.comment),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(14),
+                            child: comments.isEmpty
+                                ? const Text(
+                                    'Sin comentarios.',
+                                    style: TextStyle(
+                                      color: Color(0xFF6B7280),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  )
+                                : Column(
+                                    children: [
+                                      ...comments.map((c) {
+                                        final by = (c['by'] ?? '').toString();
+                                        final text = (c['text'] ?? '')
+                                            .toString();
+                                        return Container(
+                                          width: double.infinity,
+                                          margin: const EdgeInsets.only(
+                                            top: 10,
+                                          ),
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
+                                            border: Border.all(
+                                              color: const Color(0xFFE5E7EB),
+                                            ),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                by,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w900,
+                                                  color: Color(0xFF111827),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                text,
+                                                style: const TextStyle(
+                                                  color: Color(0xFF374151),
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }),
+                                    ],
                                   ),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              SizedBox(
+                          ),
+
+                          const SizedBox(height: 14),
+
+                          // ================= MEMORIA TÉCNICA PDF =================
+                          if (_status == 'Cerrado' &&
+                              (_isAdmin || _isTechnician))
+                            _Card(
+                              title: 'Memoria técnica',
+                              child: SizedBox(
                                 width: double.infinity,
-                                height: 46,
+                                height: 50,
                                 child: ElevatedButton.icon(
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF2563EB),
+                                    backgroundColor: const Color(0xFF111827),
                                     foregroundColor: Colors.white,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(14),
                                     ),
                                   ),
-                                  onPressed: () async {
-                                    final text = _commentController.text.trim();
-                                    if (text.isEmpty) return;
-
-                                    await _addComment(
-                                      by: 'Sucursal',
-                                      text: text,
-                                    );
-                                    _commentController.clear();
+                                  onPressed: () {
+                                    _downloadTechnicalReport();
                                   },
-                                  icon: const Icon(Icons.send),
+                                  icon: const Icon(Icons.picture_as_pdf),
                                   label: const Text(
-                                    'Enviar comentario',
+                                    'Descargar memoria técnica (PDF)',
                                     style: TextStyle(
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
                                 ),
                               ),
-                            ] else ...[
-                              const Text(
-                                'Este ticket está cerrado.\nSi el problema continúa, puedes solicitar reapertura.',
-                                style: TextStyle(
-                                  color: Color(0xFF374151),
-                                  fontWeight: FontWeight.w700,
-                                ),
+                            ),
+
+                          /// ================= ACCIONES ADMIN =================
+                          if (_isAdmin)
+                            _Card(
+                              title: 'Acciones del administrador',
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  DropdownButtonFormField<String>(
+                                    value: assignedValue,
+                                    items: _technicians
+                                        .map(
+                                          (t) => DropdownMenuItem(
+                                            value: t,
+                                            child: Text(t),
+                                          ),
+                                        )
+                                        .toList(),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _ticket['assignedTo'] = value;
+                                      });
+                                    },
+                                    decoration: InputDecoration(
+                                      labelText: 'Asignar técnico',
+                                      prefixIcon: const Icon(Icons.person),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  DropdownButtonFormField<String>(
+                                    value: _status,
+                                    items: const [
+                                      DropdownMenuItem(
+                                        value: 'Abierto',
+                                        child: Text('Abierto'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'En proceso',
+                                        child: Text('En proceso'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'Cerrado',
+                                        child: Text('Cerrado'),
+                                      ),
+                                    ],
+                                    onChanged: (value) async {
+                                      if (value == null) return;
+                                      await _changeStatus(value);
+                                    },
+                                    decoration: InputDecoration(
+                                      labelText: 'Cambiar estado',
+                                      prefixIcon: const Icon(Icons.swap_horiz),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ],
-                        ),
+                            ),
+
+                          /// ================= ACCIONES TÉCNICO =================
+                          if (_isTechnician)
+                            _Card(
+                              title: 'Acciones del técnico',
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  DropdownButtonFormField<String>(
+                                    value: _status,
+                                    items: const [
+                                      DropdownMenuItem(
+                                        value: 'Abierto',
+                                        child: Text('Abierto'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'En proceso',
+                                        child: Text('En proceso'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'Cerrado',
+                                        child: Text('Cerrado'),
+                                      ),
+                                    ],
+                                    onChanged: (value) async {
+                                      if (value == null) return;
+                                      await _changeStatus(value);
+                                    },
+                                    decoration: InputDecoration(
+                                      labelText: 'Cambiar estado',
+                                      prefixIcon: const Icon(Icons.swap_horiz),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  TextField(
+                                    controller: _commentController,
+                                    maxLines: 3,
+                                    decoration: InputDecoration(
+                                      labelText: 'Agregar comentario',
+                                      prefixIcon: const Icon(Icons.comment),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 46,
+                                    child: ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(
+                                          0xFF4CAF50,
+                                        ),
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
+                                        ),
+                                      ),
+                                      onPressed: () async {
+                                        final text = _commentController.text
+                                            .trim();
+                                        if (text.isEmpty) return;
+
+                                        await _addComment(
+                                          by: 'Técnico',
+                                          text: text,
+                                        );
+                                        _commentController.clear();
+                                      },
+                                      icon: const Icon(Icons.send),
+                                      label: const Text(
+                                        'Enviar comentario',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                          /// ================= ACCIONES SUCURSAL =================
+                          if (_isBranch)
+                            _Card(
+                              title: 'Acciones de sucursal',
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (canWriteComment) ...[
+                                    TextField(
+                                      controller: _commentController,
+                                      maxLines: 3,
+                                      decoration: InputDecoration(
+                                        labelText: 'Agregar comentario',
+                                        prefixIcon: const Icon(Icons.comment),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      height: 46,
+                                      child: ElevatedButton.icon(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(
+                                            0xFF2563EB,
+                                          ),
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
+                                          ),
+                                        ),
+                                        onPressed: () async {
+                                          final text = _commentController.text
+                                              .trim();
+                                          if (text.isEmpty) return;
+
+                                          await _addComment(
+                                            by: 'Sucursal',
+                                            text: text,
+                                          );
+                                          _commentController.clear();
+                                        },
+                                        icon: const Icon(Icons.send),
+                                        label: const Text(
+                                          'Enviar comentario',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ] else ...[
+                                    const Text(
+                                      'Este ticket está cerrado.\nSi el problema continúa, puedes solicitar reapertura.',
+                                      style: TextStyle(
+                                        color: Color(0xFF374151),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                        ],
                       ),
-                  ],
-                ),
-              ),
+                    ),
+                  ),
+                );
+              },
             ),
-          );
-        },
+            _buildChatTab(),
+          ],
+        ),
       ),
     );
   }
+
+  Widget _buildChatTab() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isDesktop = constraints.maxWidth > 900;
+
+        return Center(
+          child: Container(
+            width: isDesktop ? 800 : double.infinity,
+            decoration: const BoxDecoration(color: Color(0xFFF3F4F3)),
+            child: Column(
+              children: [
+                /// ================= MENSAJES =================
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(20),
+                    itemCount: 6,
+                    itemBuilder: (context, index) {
+                      final bool isMe = index % 2 == 0;
+
+                      return Align(
+                        alignment: isMe
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          constraints: const BoxConstraints(maxWidth: 500),
+                          decoration: BoxDecoration(
+                            color: isMe
+                                ? const Color(0xFF2563EB)
+                                : const Color(0xFFE5E7EB),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: Text(
+                            isMe ? "Mensaje mío" : "Mensaje del otro usuario",
+                            style: TextStyle(
+                              color: isMe ? Colors.white : Colors.black87,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                /// ================= INPUT =================
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
+                  ),
+                  child: Row(
+                    children: [
+                      /// 📎 BOTÓN SUBIR ARCHIVO
+                      IconButton(
+                        icon: const Icon(Icons.attach_file),
+                        onPressed: () {
+                          print("Subir imagen/video");
+                        },
+                      ),
+
+                      /// ✍️ INPUT
+                      const Expanded(
+                        child: TextField(
+                          decoration: InputDecoration(
+                            hintText: "Escribe un mensaje...",
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(14),
+                              ),
+                            ),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(width: 8),
+
+                      /// 📤 BOTÓN ENVIAR
+                      Container(
+                        height: 48,
+                        width: 48,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF2563EB),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.send, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
+
 // ===================== UI COMPONENTS =====================
 
 class _Card extends StatelessWidget {

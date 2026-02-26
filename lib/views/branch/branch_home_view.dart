@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../widgets/app_drawer.dart';
-import '../../services/session.dart'; // 👈 ajusta si tu Session está en otro lado
+import '../../services/session.dart'; //
 
 class BranchHomeView extends StatefulWidget {
   const BranchHomeView({super.key});
@@ -12,7 +12,6 @@ class BranchHomeView extends StatefulWidget {
 }
 
 class _BranchHomeViewState extends State<BranchHomeView> {
-
   List<dynamic> tickets = [];
   bool isLoading = true;
 
@@ -62,7 +61,6 @@ class _BranchHomeViewState extends State<BranchHomeView> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F3),
       appBar: AppBar(
@@ -87,15 +85,15 @@ class _BranchHomeViewState extends State<BranchHomeView> {
                 final width = constraints.maxWidth;
                 final bool isDesktop = width >= 1024;
                 final bool isTablet = width >= 600 && width < 1024;
-                final double contentMaxWidth =
-                    isDesktop ? 900 : (isTablet ? 650 : double.infinity);
+                final double contentMaxWidth = isDesktop
+                    ? 900
+                    : (isTablet ? 650 : double.infinity);
 
                 return Center(
                   child: ConstrainedBox(
                     constraints: BoxConstraints(maxWidth: contentMaxWidth),
                     child: Column(
                       children: [
-
                         // RESUMEN
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
@@ -112,7 +110,8 @@ class _BranchHomeViewState extends State<BranchHomeView> {
                               Expanded(
                                 child: _MiniPill(
                                   label: 'Abiertos',
-                                  value: '${tickets.where((t) => t['estado'] == 'Abierto').length}',
+                                  value:
+                                      '${tickets.where((t) => t['estado'] == 'Abierto').length}',
                                   color: const Color(0xFFEF4444),
                                 ),
                               ),
@@ -121,7 +120,8 @@ class _BranchHomeViewState extends State<BranchHomeView> {
                                 Expanded(
                                   child: _MiniPill(
                                     label: 'En proceso',
-                                    value: '${tickets.where((t) => t['estado'] == 'En proceso').length}',
+                                    value:
+                                        '${tickets.where((t) => t['estado'] == 'En proceso').length}',
                                     color: const Color(0xFFF59E0B),
                                   ),
                                 ),
@@ -138,88 +138,104 @@ class _BranchHomeViewState extends State<BranchHomeView> {
                             separatorBuilder: (_, __) =>
                                 const SizedBox(height: 10),
                             itemBuilder: (context, index) {
-
                               final t = tickets[index];
 
-                              final String id =
-                                  t['id_ticket'].toString();
+                              final String id = t['id_ticket'].toString();
 
-                              final String title =
-                                  t['titulo'] ?? '';
+                              final String title = t['titulo'] ?? '';
 
-                              final String status =
-                                  t['estado'] ?? '';
+                              final String status = t['estado'] ?? '';
 
                               final String prioridadColor =
                                   t['prioridad_color'] ?? 'green';
 
-                              final Color pColor =
-                                  _priorityColor(prioridadColor);
+                              final Color pColor = _priorityColor(
+                                prioridadColor,
+                              );
 
-                              return Container(
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
+                              return Material(
+                                color: Colors.transparent,
+                                borderRadius: BorderRadius.circular(18),
+                                child: InkWell(
                                   borderRadius: BorderRadius.circular(18),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.06),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 4),
+                                  onTap: () {
+                                    // Opción A: por rutas nombradas con argumento
+                                    Navigator.pushNamed(
+                                      context,
+                                      '/ticket-detail',
+                                      arguments: id, // manda el id_ticket
+                                    ).then(
+                                      (_) => _cargarTickets(),
+                                    ); // si quieres refrescar al regresar
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(18),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.06),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 10,
-                                      height: 46,
-                                      decoration: BoxDecoration(
-                                        color: pColor,
-                                        borderRadius:
-                                            BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  title,
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: const TextStyle(
-                                                    fontSize: 14.5,
-                                                    fontWeight: FontWeight.w800,
-                                                    color:
-                                                        Color(0xFF111827),
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              _StatusChip(status: status),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            'TCK-$id',
-                                            style: const TextStyle(
-                                              fontSize: 12.5,
-                                              fontWeight: FontWeight.w700,
-                                              color: Color(0xFF6B7280),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 10,
+                                          height: 46,
+                                          decoration: BoxDecoration(
+                                            color: pColor,
+                                            borderRadius: BorderRadius.circular(
+                                              12,
                                             ),
                                           ),
-                                        ],
-                                      ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      title,
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                        fontSize: 14.5,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                        color: Color(
+                                                          0xFF111827,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  _StatusChip(status: status),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                'TCK-$id',
+                                                style: const TextStyle(
+                                                  fontSize: 12.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Color(0xFF6B7280),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ],
+                                  ),
                                 ),
                               );
                             },
@@ -236,8 +252,10 @@ class _BranchHomeViewState extends State<BranchHomeView> {
         backgroundColor: const Color(0xFF4CAF50),
         foregroundColor: Colors.white,
         onPressed: () {
-          Navigator.pushNamed(context, '/create-ticket')
-              .then((_) => _cargarTickets());
+          Navigator.pushNamed(
+            context,
+            '/create-ticket',
+          ).then((_) => _cargarTickets());
         },
         icon: const Icon(Icons.add),
         label: const Text('Crear ticket'),
