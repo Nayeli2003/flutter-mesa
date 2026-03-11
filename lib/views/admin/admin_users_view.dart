@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../widgets/app_drawer.dart';
 import 'package:mesa_sana/services/session.dart';
+import '../../config/api_config.dart';
+
+
 
 const List<String> kSucursales = [
   'Casas Aleman',
@@ -144,6 +147,7 @@ class UsersApi {
       body: jsonEncode({
         'id_sucursal': idSucursal,
         'nombre_sucursal': nombreSucursal,
+        'nombre': nombreSucursal,
         'username': username,
         'password': password,
         'activo': activo,
@@ -292,7 +296,7 @@ class _AdminUsersViewState extends State<AdminUsersView>
     _tab = TabController(length: 3, vsync: this);
 
     //  Se cambia URL dependiendo del dispositivo
-    api = UsersApi(baseUrl: 'http://127.0.0.1:8000/api');
+    api = UsersApi(baseUrl: ApiConfig.baseUrl);
 
     // Carga inicial
     _loadTabUsers();
@@ -1550,3 +1554,8 @@ class _UsersTableState extends State<_UsersTable> {
     );
   }
 }
+
+
+
+
+

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'session.dart';
+import '../config/api_config.dart';
 
 class AuthApi {
   final String baseUrl;
@@ -11,7 +12,9 @@ class AuthApi {
     required String username,
     required String password,
   }) async {
-    final uri = Uri.parse('$baseUrl/login');
+
+    final uri = Uri.parse('${ApiConfig.baseUrl}/login');
+    //final uri = Uri.parse('$baseUrl/login');
 
     final res = await http.post(
       uri,

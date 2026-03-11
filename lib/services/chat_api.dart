@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../services/session.dart';
+import 'session.dart';
 
 class ChatApi {
   final String baseUrl;

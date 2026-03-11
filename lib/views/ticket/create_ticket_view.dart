@@ -9,6 +9,8 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import '../../services/session.dart';
 
+const String baseUrl = 'http://localhost:8000';
+
 class CreateTicketView extends StatefulWidget {
   const CreateTicketView({super.key});
 
@@ -201,7 +203,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
 
     try {
       // 2. Configurar la petición (Ajusta la URL a tu API real)
-      final url = Uri.parse('http://127.0.0.1:8000/api/tickets');
+      final url = Uri.parse('$baseUrl/api/tickets');
       var request = http.MultipartRequest('POST', url);
       request.headers['Authorization'] = 'Bearer ${Session.token}';
 

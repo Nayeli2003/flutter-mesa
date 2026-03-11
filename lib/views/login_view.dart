@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:mesa_sana/services/session.dart';
+import '../config/api_config.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -26,8 +27,8 @@ class _LoginViewState extends State<LoginView> {
   // Android Emulator: http://10.0.2.2:8000/api
   // Celular físico: http://IP_DE_TU_PC:8000/api
   // Se debe cambiar cuando se suba a un servidor.
-  final Dio _dio = Dio(BaseOptions(
-    baseUrl: 'http://127.0.0.1:8000/api',
+    final Dio _dio = Dio(BaseOptions(
+    baseUrl: ApiConfig.baseUrl,
     headers: {'Accept': 'application/json'},
     connectTimeout: const Duration(seconds: 10),
     receiveTimeout: const Duration(seconds: 10),

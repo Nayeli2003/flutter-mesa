@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import '../../widgets/app_drawer.dart';
 import '../../services/session.dart'; //
 
+const String baseUrl = 'http://localhost:8000';
+
 class BranchHomeView extends StatefulWidget {
   const BranchHomeView({super.key});
 
@@ -24,7 +26,7 @@ class _BranchHomeViewState extends State<BranchHomeView> {
   Future<void> _cargarTickets() async {
     try {
       final response = await http.get(
-        Uri.parse('http://127.0.0.1:8000/api/tickets'),
+        Uri.parse('$baseUrl/api/tickets'),
         headers: {
           'Authorization': 'Bearer ${Session.token}',
           'Accept': 'application/json',

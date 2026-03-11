@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../services/session.dart';
 
+const String baseUrl = 'http://localhost:8000';
+
 enum TicketStatus { asignado, enProceso, cerrado }
 
 enum TicketPriority { verde, naranja, rojo }
@@ -72,7 +74,7 @@ class _TechnicianTicketsViewState extends State<TechnicianTicketsView> {
       return;
     }
     final res = await http.get(
-      Uri.parse('http://127.0.0.1:8000/api/mis-tickets'),
+      Uri.parse('$baseUrl/api/mis-tickets'),
       headers: {
         'Authorization': 'Bearer ${Session.token}',
         'Accept': 'application/json',
