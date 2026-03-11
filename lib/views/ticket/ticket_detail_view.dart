@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 
+const String baseUrl = 'http://localhost:8000';
+
 class TicketDetailView extends StatefulWidget {
   const TicketDetailView({super.key});
 
@@ -59,7 +61,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     if (_ticketId == null) return;
 
     final response = await http.get(
-      Uri.parse('http://127.0.0.1:8000/api/tickets/$_ticketId'),
+      Uri.parse('$baseUrl/api/tickets/$_ticketId'),
       headers: {
         'Authorization': 'Bearer ${Session.token}',
         'Accept': 'application/json',
@@ -71,7 +73,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
 
       setState(() {
         _ticket = data;
-        _status = data['status'];
+        _status = data['estado'] ?? ''; // backend devuelve "estado"
         _idRol = Session.idRol;
       });
 
@@ -83,7 +85,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     if (_ticketId == null) return;
 
     final response = await http.get(
-      Uri.parse('http://127.0.0.1:8000/api/tickets/$_ticketId/mensajes'),
+      Uri.parse('$baseUrl/api/tickets/$_ticketId/mensajes'),
       headers: {
         'Authorization': 'Bearer ${Session.token}',
         'Accept': 'application/json',
@@ -102,7 +104,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
 
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://127.0.0.1:8000/api/tickets/$_ticketId/mensajes'),
+      Uri.parse('$baseUrl/api/tickets/$_ticketId/mensajes'),
     );
 
     request.headers['Authorization'] = 'Bearer ${Session.token}';
@@ -143,7 +145,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     if (_ticketId == null) return;
 
     final response = await http.post(
-      Uri.parse('http://127.0.0.1:8000/api/tickets/$_ticketId/mensajes'),
+      Uri.parse('$baseUrl/api/tickets/$_ticketId/mensajes'),
       headers: {
         'Authorization': 'Bearer ${Session.token}',
         'Accept': 'application/json',
@@ -405,6 +407,8 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                                     Expanded(
                                       child: Text(
                                         title,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w900,
@@ -940,7 +944,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                       final m = _mensajes[index];
 
                       final bool isMe =
-                          m['usuario']['id_usuario'] == Session.idUsuario;
+                          (m['id_usuario'] ?? 0) == Session.idUsuario;
 
                       return Align(
                         alignment: isMe

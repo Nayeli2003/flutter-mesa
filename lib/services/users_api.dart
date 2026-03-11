@@ -1,11 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'session.dart';
+import '../config/api_config.dart';
 
 class UsersApi {
-  final String baseUrl; // ejemplo: http://127.0.0.1:8000/api
-
-  UsersApi({required this.baseUrl});
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
@@ -20,12 +18,15 @@ class UsersApi {
     if (activo != null) params['activo'] = activo ? '1' : '0';
     if (q != null && q.trim().isNotEmpty) params['q'] = q.trim();
 
-    final uri = Uri.parse('$baseUrl/usuarios').replace(queryParameters: params);
+    final uri = Uri.parse('${ApiConfig.baseUrl}/usuarios')
+        .replace(queryParameters: params);
+
     final res = await http.get(uri, headers: _headers);
 
     if (res.statusCode != 200) {
       throw Exception('Error al listar: ${res.statusCode} ${res.body}');
     }
+
     return jsonDecode(res.body) as List<dynamic>;
   }
 
@@ -36,7 +37,8 @@ class UsersApi {
     required String password,
     required bool activo,
   }) async {
-    final uri = Uri.parse('$baseUrl/usuarios/admin');
+    final uri = Uri.parse('${ApiConfig.baseUrl}/usuarios/admin');
+
     final res = await http.post(
       uri,
       headers: _headers,
@@ -47,6 +49,7 @@ class UsersApi {
         'activo': activo,
       }),
     );
+
     if (res.statusCode != 201) throw Exception(res.body);
   }
 
@@ -57,7 +60,8 @@ class UsersApi {
     required String password,
     required bool activo,
   }) async {
-    final uri = Uri.parse('$baseUrl/usuarios/tecnico');
+    final uri = Uri.parse('${ApiConfig.baseUrl}/usuarios/tecnico');
+
     final res = await http.post(
       uri,
       headers: _headers,
@@ -68,6 +72,7 @@ class UsersApi {
         'activo': activo,
       }),
     );
+
     if (res.statusCode != 201) throw Exception(res.body);
   }
 
@@ -79,36 +84,44 @@ class UsersApi {
     required String password,
     required bool activo,
   }) async {
-    final uri = Uri.parse('$baseUrl/usuarios/sucursal');
+    final uri = Uri.parse('${ApiConfig.baseUrl}/usuarios/sucursal');
+
     final res = await http.post(
       uri,
       headers: _headers,
       body: jsonEncode({
-        'id_sucursal': idSucursal,
-        'nombre': nombreSucursal,
-        'username': username,
-        'password': password,
-        'activo': activo,
-      }),
+    'id_sucursal': idSucursal,
+    'nombre_sucursal': nombreSucursal,
+    'nombre': nombreSucursal,
+   'username': username,
+    'password': password,
+    'activo': activo,
+  }),
     );
+
     if (res.statusCode != 201) throw Exception(res.body);
   }
 
   // ACTIVAR / DESACTIVAR
   Future<void> toggleEstado(int idUsuario) async {
-    final uri = Uri.parse('$baseUrl/usuarios/$idUsuario/estado');
+    final uri =
+        Uri.parse('${ApiConfig.baseUrl}/usuarios/$idUsuario/estado');
+
     final res = await http.patch(uri, headers: _headers);
+
     if (res.statusCode != 200) throw Exception(res.body);
   }
 
   // ELIMINAR
   Future<void> eliminar(int idUsuario) async {
-    final uri = Uri.parse('$baseUrl/usuarios/$idUsuario');
+    final uri = Uri.parse('${ApiConfig.baseUrl}/usuarios/$idUsuario');
+
     final res = await http.delete(uri, headers: _headers);
+
     if (res.statusCode != 200) throw Exception(res.body);
   }
 
-  // EDITAR USUARIO (PUT)
+  // EDITAR USUARIO
   Future<void> updateUser({
     required int idUsuario,
     String? nombre,
@@ -118,7 +131,7 @@ class UsersApi {
     bool? activo,
     String? password,
   }) async {
-    final uri = Uri.parse('$baseUrl/usuarios/$idUsuario');
+    final uri = Uri.parse('${ApiConfig.baseUrl}/usuarios/$idUsuario');
 
     final res = await http.put(
       uri,
