@@ -599,73 +599,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
 
                           const SizedBox(height: 14),
 
-                          /// ================= HISTORIAL =================
-                          _Card(
-                            title: 'Historial',
-                            trailing: Text(
-                              '${comments.length}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFF111827),
-                              ),
-                            ),
-                            child: comments.isEmpty
-                                ? const Text(
-                                    'Sin comentarios.',
-                                    style: TextStyle(
-                                      color: Color(0xFF6B7280),
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  )
-                                : Column(
-                                    children: [
-                                      ...comments.map((c) {
-                                        final by = (c['by'] ?? '').toString();
-                                        final text = (c['text'] ?? '')
-                                            .toString();
-                                        return Container(
-                                          width: double.infinity,
-                                          margin: const EdgeInsets.only(
-                                            top: 10,
-                                          ),
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            borderRadius: BorderRadius.circular(
-                                              14,
-                                            ),
-                                            border: Border.all(
-                                              color: const Color(0xFFE5E7EB),
-                                            ),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                by,
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.w900,
-                                                  color: Color(0xFF111827),
-                                                ),
-                                              ),
-                                              const SizedBox(height: 6),
-                                              Text(
-                                                text,
-                                                style: const TextStyle(
-                                                  color: Color(0xFF374151),
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      }),
-                                    ],
-                                  ),
-                          ),
-
-                          const SizedBox(height: 14),
+                          /// ================= HISTORIAL ================= 
 
                           // ================= MEMORIA TÉCNICA PDF =================
                           if (_status == 'Cerrado' &&
@@ -796,120 +730,11 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                                     ),
                                   ),
                                   const SizedBox(height: 12),
-                                  TextField(
-                                    controller: _commentController,
-                                    maxLines: 3,
-                                    decoration: InputDecoration(
-                                      labelText: 'Agregar comentario',
-                                      prefixIcon: const Icon(Icons.comment),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 46,
-                                    child: ElevatedButton.icon(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(
-                                          0xFF4CAF50,
-                                        ),
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            14,
-                                          ),
-                                        ),
-                                      ),
-                                      onPressed: () async {
-                                        final text = _commentController.text
-                                            .trim();
-                                        if (text.isEmpty) return;
-
-                                        await _addComment(text: text);
-                                        _commentController.clear();
-                                      },
-                                      icon: const Icon(Icons.send),
-                                      label: const Text(
-                                        'Enviar comentario',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
                                 ],
                               ),
                             ),
 
                           /// ================= ACCIONES SUCURSAL =================
-                          if (_isBranch)
-                            _Card(
-                              title: 'Acciones de sucursal',
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (canWriteComment) ...[
-                                    TextField(
-                                      controller: _commentController,
-                                      maxLines: 3,
-                                      decoration: InputDecoration(
-                                        labelText: 'Agregar comentario',
-                                        prefixIcon: const Icon(Icons.comment),
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            14,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      height: 46,
-                                      child: ElevatedButton.icon(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(
-                                            0xFF2563EB,
-                                          ),
-                                          foregroundColor: Colors.white,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              14,
-                                            ),
-                                          ),
-                                        ),
-                                        onPressed: () async {
-                                          final text = _commentController.text
-                                              .trim();
-                                          if (text.isEmpty) return;
-
-                                          await _addComment(text: text);
-                                          _commentController.clear();
-                                        },
-                                        icon: const Icon(Icons.send),
-                                        label: const Text(
-                                          'Enviar comentario',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ] else ...[
-                                    const Text(
-                                      'Este ticket está cerrado.\nSi el problema continúa, puedes solicitar reapertura.',
-                                      style: TextStyle(
-                                        color: Color(0xFF374151),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
                         ],
                       ),
                     ),
