@@ -351,7 +351,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
         : '';
 
     final evidences = List<Map<String, dynamic>>.from(
-      (_ticket['evidences'] ?? []).map<Map<String, dynamic>>(
+      (_ticket['evidencias'] ?? []).map<Map<String, dynamic>>(
         (e) => Map<String, dynamic>.from(e),
       ),
     );

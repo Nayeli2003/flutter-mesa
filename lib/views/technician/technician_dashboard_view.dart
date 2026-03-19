@@ -128,19 +128,7 @@ class _TechnicianDashboardViewState extends State<TechnicianDashboardView> {
                             Navigator.pushNamed(
                               context,
                               '/ticket-detail',
-                              arguments: {
-                                'id': id,
-                                'title': title,
-                                'description': t['descripcion'] ?? '',
-                                'branch': branch,
-                                'category': t['tipo_problema'] ?? '',
-                                'priority': priority,
-                                'status': status,
-                                'createdAt': t['fecha_creacion'] ?? '',
-                                'role': 'tecnico',
-                                'evidences': [],
-                                'comments': [],
-                              },
+                              arguments: id,
                             );
                           },
                           child: Container(

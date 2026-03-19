@@ -70,33 +70,6 @@ class _CreateTicketViewState extends State<CreateTicketView> {
   ]..sort((a, b) => a['nombre'].compareTo(b['nombre']));
 
   /// ==========================
-  /// CATEGORÍAS + SUBTIPOS
-  /// ==========================
-  /*--------------SE COMENTO PROVICIONAL-------------------
-  final Map<String, List<String>> categorias = {
-    "Facturación": [
-      "Cambio de precio",
-      "Error al facturar al cliente",
-      "Código erróneo SAT",
-      "Error en serie de factura",
-      "Error al firmar por falla en el servidor de correos smtp",
-      "Reimpresión de ticket",
-    ],
-    "Sistema MPro": [
-      "Exceso de usuarios",
-      "No cuenta con licencia",
-      "Producto Talla/Color",
-    ],
-    "Conectividad": [
-      "Error de conexión",
-      "Falla Telmex",
-      "Error en réplicas (Hamachi)",
-    ],
-    "Correo": ["Falla en el correo"],
-    "Infraestructura": ["Falla de luz"],
-  };
------------SE COMETO PROVIICONAL--------------------*/
-  /// ==========================
   /// MAPA TEMPORAL: SUBTIPO -> ID TIPO_PROBLEMA
   /// (Luego lo reemplazamos por datos reales del backend)
   /// ==========================
@@ -142,6 +115,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
 
     if (result == null) return;
 
+    if (!mounted) return;
     setState(() {
       evidencias.addAll(result.files);
     });
@@ -217,6 +191,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
       // Mandamos el ID real del tipo de problema
       request.fields['id_tipo_problema'] = idTipoProblemaSeleccionado
           .toString();
+      // request.fields['id_sucursal'] = sucursalId.toString();
 
       // 4. Agregar archivos (Evidencias)
       for (var f in evidencias) {
@@ -230,7 +205,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
             if (f.readStream != null) {
               request.files.add(
                 http.MultipartFile(
-                  'files', // Nombre del campo que espera tu backend
+                  'evidencias', // Nombre del campo que espera tu backend
                   f.readStream!,
                   f.size,
                   filename: f.name,
@@ -241,7 +216,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
               // Fallback: si por alguna razón sí hay bytes
               request.files.add(
                 http.MultipartFile.fromBytes(
-                  'files',
+                  'evidencias',
                   f.bytes!,
                   filename: f.name,
                   contentType: ct,
@@ -253,7 +228,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
             if (f.bytes != null) {
               request.files.add(
                 http.MultipartFile.fromBytes(
-                  'files',
+                  'evidencias',
                   f.bytes!,
                   filename: f.name,
                   contentType: ct,
@@ -266,7 +241,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
           if (f.path != null) {
             request.files.add(
               await http.MultipartFile.fromPath(
-                'files',
+                'evidencias',
                 f.path!,
                 filename: f.name,
                 contentType: ct,
