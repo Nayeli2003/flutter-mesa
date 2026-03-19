@@ -1,46 +1,53 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:mesa_sana/widgets/app_drawer.dart';
+import '../../services/session.dart';
 
-class TechnicianDashboardView extends StatelessWidget {
+class TechnicianDashboardView extends StatefulWidget {
   const TechnicianDashboardView({super.key});
 
   @override
+  State<TechnicianDashboardView> createState() =>
+      _TechnicianDashboardViewState();
+}
+
+const String baseUrl = 'http://localhost:8000';
+
+class _TechnicianDashboardViewState extends State<TechnicianDashboardView> {
+  List<dynamic> tickets = [];
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTickets();
+  }
+
+  Future<void> _loadTickets() async {
+    final res = await http.get(
+      Uri.parse('$baseUrl/api/mis-tickets'),
+      headers: {
+        'Authorization': 'Bearer ${Session.token}',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (res.statusCode == 200) {
+      setState(() {
+        tickets = jsonDecode(res.body);
+        loading = false;
+      });
+    } else {
+      setState(() => loading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Tickets MOCK (solo UI)-> se debe cambiar para que se conecte al backend
-    final tickets = [
-      {
-        'id': 'TCK-001',
-        'title': 'Sin internet en caja',
-        'branch': 'Sucursal Centro',
-        'priority': 'ROJO',
-        'status': 'Abierto',
-        'minutes': 35,
-      },
-      {
-        'id': 'TCK-002',
-        'title': 'Impresora no imprime',
-        'branch': 'Sucursal Norte',
-        'priority': 'NARANJA',
-        'status': 'En proceso',
-        'minutes': 140,
-      },
-      {
-        'id': 'TCK-003',
-        'title': 'Cambio de contraseña',
-        'branch': 'Sucursal Sur',
-        'priority': 'VERDE',
-        'status': 'Abierto',
-        'minutes': 15,
-      },
-      {
-        'id': 'TCK-004',
-        'title': 'No abre sistema POS',
-        'branch': 'Sucursal Centro',
-        'priority': 'ROJO',
-        'status': 'En proceso',
-        'minutes': 210,
-      },
-    ];
+    if (loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F3),
@@ -55,25 +62,10 @@ class TechnicianDashboardView extends StatelessWidget {
           ),
         ),
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Color(0xFF1F2937)),
-        actions: [
-          IconButton(
-            tooltip: 'Buscar',
-            onPressed: () {},
-            icon: const Icon(Icons.search, color: Color(0xFF1F2937)),
-          ),
-          IconButton(
-            tooltip: 'Filtrar',
-            onPressed: () {},
-            icon: const Icon(Icons.filter_list, color: Color(0xFF1F2937)),
-          ),
-        ],
       ),
 
-      // ESTE ES EL MENUUUUU
       drawer: const AppDrawer(role: UserRole.tecnico, title: 'technician'),
 
-      // Responsive: limita ancho en escritorio y centra
       body: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
@@ -90,7 +82,6 @@ class TechnicianDashboardView extends StatelessWidget {
               constraints: BoxConstraints(maxWidth: contentMaxWidth),
               child: Column(
                 children: [
-                  // Barra superior tipo WhatsApp (resumen rápido)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
                     child: Row(
@@ -107,26 +98,14 @@ class TechnicianDashboardView extends StatelessWidget {
                           child: _MiniPill(
                             label: 'Urgentes',
                             value:
-                                '${tickets.where((t) => t['priority'] == 'ROJO').length}',
+                                '${tickets.where((t) => t['prioridad'] == 'Alta').length}',
                             color: const Color(0xFFEF4444),
                           ),
                         ),
-                        if (!isMobile) ...[
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _MiniPill(
-                              label: 'En proceso',
-                              value:
-                                  '${tickets.where((t) => t['status'] == 'En proceso').length}',
-                              color: const Color(0xFFF59E0B),
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                   ),
 
-                  // Lista de tickets estilo WhatsApp
                   Expanded(
                     child: ListView.separated(
                       padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
@@ -134,18 +113,17 @@ class TechnicianDashboardView extends StatelessWidget {
                       separatorBuilder: (_, __) => const SizedBox(height: 10),
                       itemBuilder: (context, index) {
                         final t = tickets[index];
-                        final String id = t['id'] as String;
-                        final String title = t['title'] as String;
-                        final String branch = t['branch'] as String;
-                        final String priority = t['priority'] as String;
-                        final String status = t['status'] as String;
-                        final int minutes = t['minutes'] as int;
+
+                        final id = t['id_ticket'].toString();
+                        final title = t['titulo'].toString();
+                        final branch = t['sucursal'].toString();
+                        final priority = t['prioridad'].toString();
+                        final status = t['estado'].toString();
 
                         final Color pColor = _priorityColor(priority);
                         final IconData pIcon = _priorityIcon(priority);
 
                         return InkWell(
-                          borderRadius: BorderRadius.circular(18),
                           onTap: () {
                             Navigator.pushNamed(
                               context,
@@ -153,15 +131,14 @@ class TechnicianDashboardView extends StatelessWidget {
                               arguments: {
                                 'id': id,
                                 'title': title,
-                                'description':
-                                    'Descripción del problema reportado por la sucursal.',
+                                'description': t['descripcion'] ?? '',
                                 'branch': branch,
-                                'category': 'Soporte técnico',
+                                'category': t['tipo_problema'] ?? '',
                                 'priority': priority,
                                 'status': status,
-                                'createdAt': '2026-01-14 09:20',
-                                'role': 'tecnico', //  IMPORTANTE
-                                'evidences': [], // luego serán reales
+                                'createdAt': t['fecha_creacion'] ?? '',
+                                'role': 'tecnico',
+                                'evidences': [],
                                 'comments': [],
                               },
                             );
@@ -180,8 +157,8 @@ class TechnicianDashboardView extends StatelessWidget {
                               ],
                             ),
                             child: Row(
+                              // ESTE ES EL FIX
                               children: [
-                                // Avatar con prioridad
                                 Container(
                                   width: 46,
                                   height: 46,
@@ -193,91 +170,21 @@ class TechnicianDashboardView extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 12),
 
-                                // Texto principal
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              title,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                fontSize: 14.5,
-                                                fontWeight: FontWeight.w800,
-                                                color: Color(0xFF111827),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          _StatusChip(status: status),
-                                        ],
+                                      Text(
+                                        title,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                      const SizedBox(height: 6),
-                                      Row(
-                                        children: [
-                                          Text(
-                                            id,
-                                            style: const TextStyle(
-                                              fontSize: 12.5,
-                                              fontWeight: FontWeight.w700,
-                                              color: Color(0xFF6B7280),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 10),
-                                          Expanded(
-                                            child: Text(
-                                              branch,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                fontSize: 12.5,
-                                                color: Color(0xFF6B7280),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          _PriorityPill(
-                                            text: priority,
-                                            color: pColor,
-                                          ),
-                                          const SizedBox(width: 10),
-                                          Icon(
-                                            Icons.schedule,
-                                            size: 16,
-                                            color: Colors.black.withOpacity(
-                                              0.55,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '$minutes min',
-                                            style: const TextStyle(
-                                              fontSize: 12.5,
-                                              fontWeight: FontWeight.w700,
-                                              color: Color(0xFF374151),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                                      Text(branch),
+                                      Text(status),
                                     ],
                                   ),
-                                ),
-
-                                const SizedBox(width: 10),
-
-                                // Flechita
-                                Icon(
-                                  Icons.chevron_right,
-                                  color: Colors.black.withOpacity(0.35),
                                 ),
                               ],
                             ),
@@ -291,15 +198,6 @@ class TechnicianDashboardView extends StatelessWidget {
             ),
           );
         },
-      ),
-
-      // Botón flotante tipo WhatsApp (para crear ticket o refrescar, tú decides)
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF4CAF50),
-        onPressed: () {
-          // TODO: acción (crear ticket / refrescar)
-        },
-        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -326,7 +224,6 @@ class TechnicianDashboardView extends StatelessWidget {
     }
   }
 }
-
 // ---------- Widgets pequeños (UI) ----------
 
 class _MiniPill extends StatelessWidget {

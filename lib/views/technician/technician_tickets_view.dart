@@ -89,13 +89,13 @@ class _TechnicianTicketsViewState extends State<TechnicianTicketsView> {
       setState(() {
         _tickets = data.map((e) {
           return TicketModel(
-            folio: e['folio'].toString(),
+            folio: e['id_ticket'].toString(),
             titulo: e['titulo'].toString(),
             sucursal: e['sucursal'].toString(),
-            branchId: e['branch_id'].toString(),
-            fecha: DateTime.parse(e['created_at']),
-            status: _mapStatus(e['status'].toString()),
-            priority: _mapPriority(e['priority'].toString()),
+            branchId: e['id_sucursal'].toString(),
+            fecha: DateTime.parse(e['fecha_creacion']),
+            status: _mapStatus(e['estado'].toString()),
+            priority: _mapPriority(e['prioridad'].toString()),
           );
         }).toList();
 

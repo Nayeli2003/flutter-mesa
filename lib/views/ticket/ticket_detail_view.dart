@@ -32,7 +32,8 @@ class _TicketDetailViewState extends State<TicketDetailView> {
   bool get _isTechnician => _idRol == 2;
   bool get _isBranch => _idRol == 3;
 
-  final List<String> _technicians = ['Juan', 'Pedro', 'Luis'];
+  List<dynamic> _technicians = [];
+  int? _selectedTecnicoId;
 
   @override
   void dispose() {
@@ -57,6 +58,27 @@ class _TicketDetailViewState extends State<TicketDetailView> {
 
   ///aqui
   /// backend
+  ///
+  Future<void> _assignTecnico(int idTecnico) async {
+    if (_ticketId == null) return;
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/tickets/$_ticketId/asignar'),
+      headers: {
+        'Authorization': 'Bearer ${Session.token}',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'id_tecnico': idTecnico}),
+    );
+
+    if (response.statusCode == 200) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Técnico asignado')));
+    }
+  }
+
   Future<void> _loadTicket() async {
     if (_ticketId == null) return;
 
@@ -65,6 +87,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
       headers: {
         'Authorization': 'Bearer ${Session.token}',
         'Accept': 'application/json',
+        'Content-Type': 'application/json',
       },
     );
 
@@ -78,6 +101,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
       });
 
       await _loadMensajes();
+      await _loadTechnicians();
     }
   }
 
@@ -155,6 +179,22 @@ class _TicketDetailViewState extends State<TicketDetailView> {
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       await _loadMensajes();
+    }
+  }
+
+  Future<void> _loadTechnicians() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/usuarios?id_rol=2'),
+      headers: {
+        'Authorization': 'Bearer ${Session.token}',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      setState(() {
+        _technicians = jsonDecode(response.body);
+      });
     }
   }
 
@@ -599,8 +639,6 @@ class _TicketDetailViewState extends State<TicketDetailView> {
 
                           const SizedBox(height: 14),
 
-                          /// ================= HISTORIAL ================= 
-
                           // ================= MEMORIA TÉCNICA PDF =================
                           if (_status == 'Cerrado' &&
                               (_isAdmin || _isTechnician))
@@ -638,20 +676,26 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  DropdownButtonFormField<String>(
-                                    value: assignedValue,
+                                  DropdownButtonFormField<int>(
+                                    value: _selectedTecnicoId,
                                     items: _technicians
-                                        .map(
-                                          (t) => DropdownMenuItem(
-                                            value: t,
-                                            child: Text(t),
-                                          ),
-                                        )
+                                        .map<DropdownMenuItem<int>>((t) {
+                                          return DropdownMenuItem<int>(
+                                            value: t['id_usuario'],
+                                            child: Text(t['nombre']),
+                                          );
+                                        })
                                         .toList(),
-                                    onChanged: (value) {
+                                    onChanged: (value) async {
+                                      if (value == null) return;
+
                                       setState(() {
-                                        _ticket['assignedTo'] = value;
+                                        _selectedTecnicoId = value;
                                       });
+
+                                      await _assignTecnico(
+                                        value,
+                                      ); // 🔥 GUARDA EN BD
                                     },
                                     decoration: InputDecoration(
                                       labelText: 'Asignar técnico',
