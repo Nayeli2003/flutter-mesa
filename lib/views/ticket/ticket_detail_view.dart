@@ -6,6 +6,7 @@ import '../../services/session.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const String baseUrl = 'http://localhost:8000';
 
@@ -349,7 +350,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
         (_ticket['fecha_creacion']?.toString().trim().isNotEmpty ?? false)
         ? _ticket['fecha_creacion']
         : '';
-
+    //(_ticket['evidencias'] ?? [])
     final evidences = List<Map<String, dynamic>>.from(
       (_ticket['evidencias'] ?? []).map<Map<String, dynamic>>(
         (e) => Map<String, dynamic>.from(e),
@@ -561,25 +562,28 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                                                 ClipRRect(
                                                   borderRadius:
                                                       BorderRadius.circular(10),
-                                                  child: kIsWeb
-                                                      ? (bytes is Uint8List
-                                                            ? Image.memory(
-                                                                bytes,
-                                                                width: 44,
-                                                                height: 44,
-                                                                fit: BoxFit
-                                                                    .cover,
-                                                              )
-                                                            : _emptyPreview())
-                                                      : (path != null
-                                                            ? Image.file(
-                                                                File(path),
-                                                                width: 44,
-                                                                height: 44,
-                                                                fit: BoxFit
-                                                                    .cover,
-                                                              )
-                                                            : _emptyPreview()),
+                                                  child:
+                                                      (path != null &&
+                                                          path
+                                                              .toString()
+                                                              .startsWith(
+                                                                'http',
+                                                              ))
+                                                      ? Image.network(
+                                                          path,
+                                                          width: 44,
+                                                          height: 44,
+                                                          fit: BoxFit.cover,
+                                                          errorBuilder:
+                                                              (
+                                                                context,
+                                                                error,
+                                                                stackTrace,
+                                                              ) {
+                                                                return _emptyPreview();
+                                                              },
+                                                        )
+                                                      : _emptyPreview(),
                                                 )
                                               else
                                                 Container(
@@ -626,7 +630,14 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                                                 ),
                                               ),
                                               TextButton(
-                                                onPressed: () {},
+                                                onPressed: () {
+                                                  if (path != null &&
+                                                      path
+                                                          .toString()
+                                                          .startsWith('http')) {
+                                                    launchUrl(Uri.parse(path));
+                                                  }
+                                                },
                                                 child: const Text('Ver'),
                                               ),
                                             ],

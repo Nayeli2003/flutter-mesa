@@ -103,14 +103,13 @@ class _CreateTicketViewState extends State<CreateTicketView> {
   /// ==========================
   /// EVIDENCIAS
   /// ==========================
-
   Future<void> _pickEvidencias() async {
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
       type: FileType.custom,
       allowedExtensions: const ['jpg', 'jpeg', 'png', 'mp4', 'mov'],
-      withData: kIsWeb,
-      withReadStream: kIsWeb,
+      withData: true,
+      withReadStream: false,
     );
 
     if (result == null) return;
@@ -195,61 +194,27 @@ class _CreateTicketViewState extends State<CreateTicketView> {
 
       // 4. Agregar archivos (Evidencias)
       for (var f in evidencias) {
-        final ct = _contentTypeFor(f);
-
-        if (kIsWeb) {
-          final isVid = _isVideo(f);
-
-          if (isVid) {
-            // WEB VIDEO: subir por stream (mejor para archivos grandes)
-            if (f.readStream != null) {
-              request.files.add(
-                http.MultipartFile(
-                  'evidencias', // Nombre del campo que espera tu backend
-                  f.readStream!,
-                  f.size,
-                  filename: f.name,
-                  contentType: ct,
-                ),
-              );
-            } else if (f.bytes != null) {
-              // Fallback: si por alguna razón sí hay bytes
-              request.files.add(
-                http.MultipartFile.fromBytes(
-                  'evidencias',
-                  f.bytes!,
-                  filename: f.name,
-                  contentType: ct,
-                ),
-              );
-            }
-          } else {
-            // WEB IMAGEN: bytes para preview + subida
-            if (f.bytes != null) {
-              request.files.add(
-                http.MultipartFile.fromBytes(
-                  'evidencias',
-                  f.bytes!,
-                  filename: f.name,
-                  contentType: ct,
-                ),
-              );
-            }
-          }
-        } else {
-          // MÓVIL: usamos path (imagen o video)
-          if (f.path != null) {
-            request.files.add(
-              await http.MultipartFile.fromPath(
-                'evidencias',
-                f.path!,
-                filename: f.name,
-                contentType: ct,
-              ),
-            );
-          }
+        if (f.bytes != null) {
+          // 🔥 WEB y móvil (cuando hay bytes)
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              'evidencias',
+              f.bytes!,
+              filename: f.name,
+            ),
+          );
+        } else if (f.path != null) {
+          // 📱 móvil
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'evidencias',
+              f.path!,
+              filename: f.name,
+            ),
+          );
         }
       }
+      print("FILES: ${request.files.length}");
 
       // 5. Enviar y esperar respuesta
       final streamedResponse = await request.send();
