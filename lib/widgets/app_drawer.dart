@@ -91,6 +91,7 @@ class AppDrawer extends StatelessWidget {
           _MenuItem(Icons.group, 'Usuarios', route: '/admin-users'),
           _MenuItem(Icons.bar_chart, 'Métricas / SLA', route: '/admin-metrics'),
           _MenuItem(Icons.confirmation_number, 'Todos los tickets', route: '/admin-tickets'),
+          _MenuItem(Icons.confirmation_number, 'Problemas', route: '/admin-problems'),
         ];
 
       case UserRole.tecnico:

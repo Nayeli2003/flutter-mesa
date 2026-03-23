@@ -12,6 +12,7 @@ import 'views/technician/technician_tickets_view.dart';
 import 'views/admin/admin_tickets_view.dart';
 import 'views/admin/admin_users_view.dart';
 import 'views/admin/admin_metrics_view.dart';
+import 'views/admin/admin_problems_view.dart';
 
 void main() async {
   // necesario para usar await antes de runApp
@@ -108,6 +109,8 @@ class MyApp extends StatelessWidget {
         '/admin-users': (_) => const GuardedRoute(child: AdminUsersView()),//vista de administrador de usuarios
         '/admin-metrics': (_) =>
             const GuardedRoute(child: AdminMetricsView()),//metricas que puede ver el administrador
+            '/admin-problems': (_) =>
+    const GuardedRoute(child: AdminProblemsView()),
       },
     );
   }
