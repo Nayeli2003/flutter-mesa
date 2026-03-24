@@ -9,7 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import '../../services/session.dart';
 
-const String baseUrl = 'http://localhost:8000';
+//const String baseUrl = 'http://localhost:8000';
 
 class CreateTicketView extends StatefulWidget {
   const CreateTicketView({super.key});
@@ -65,7 +65,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
     {'id': 4, 'nombre': 'Sucursal Tecámac Centro'},
     {'id': 5, 'nombre': 'Sucursal Tecámac La Principal'},
     {'id': 3, 'nombre': 'Sucursal Tezontepec'},
-    {'id': 15, 'nombre': 'Sucursal Vía Morelos'},
+    {'id': 50, 'nombre': 'Sucursal Vía Morelos'},
     {'id': 33, 'nombre': 'Sucursal Zumpango'},
   ]..sort((a, b) => a['nombre'].compareTo(b['nombre']));
 
@@ -194,27 +194,32 @@ class _CreateTicketViewState extends State<CreateTicketView> {
 
       // 4. Agregar archivos (Evidencias)
       for (var f in evidencias) {
+        // 1. Obtenemos el tipo específico para este archivo
+        final mediaType = _contentTypeFor(f);
+
         if (f.bytes != null) {
-          // 🔥 WEB y móvil (cuando hay bytes)
+          // Escenario Web / Bytes
           request.files.add(
             http.MultipartFile.fromBytes(
-              'evidencias',
+              'evidencias[]',
               f.bytes!,
               filename: f.name,
+              contentType: mediaType, // <--- Ahora Laravel sabrá qué es
             ),
           );
         } else if (f.path != null) {
-          // 📱 móvil
+          // Escenario Móvil / Path
           request.files.add(
             await http.MultipartFile.fromPath(
-              'evidencias',
+              'evidencias[]',
               f.path!,
               filename: f.name,
+              contentType:
+                  mediaType, // <--- Crucial para la validación mimes:jpg,png...
             ),
           );
         }
       }
-      print("FILES: ${request.files.length}");
 
       // 5. Enviar y esperar respuesta
       final streamedResponse = await request.send();
