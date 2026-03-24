@@ -95,13 +95,18 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
 
+      if (!mounted) return;
+
       setState(() {
         _ticket = data;
-        _status = data['estado'] ?? ''; // backend devuelve "estado"
+        _status = data['estado'] ?? '';
         _idRol = Session.idRol;
       });
 
+      if (!mounted) return;
       await _loadMensajes();
+
+      if (!mounted) return;
       await _loadTechnicians();
     }
   }
@@ -152,6 +157,33 @@ class _TicketDetailViewState extends State<TicketDetailView> {
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       await _loadMensajes();
+    }
+  }
+
+  Future<void> _updateStatusBackend(String newStatus) async {
+    if (_ticketId == null) return;
+
+    int estadoId = 1;
+
+    if (newStatus == 'Abierto') estadoId = 1;
+    if (newStatus == 'En proceso') estadoId = 2;
+    if (newStatus == 'Cerrado') estadoId = 3;
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/tickets/$_ticketId/resolver'),
+      headers: {
+        'Authorization': 'Bearer ${Session.token}',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'id_estado': estadoId,
+        'solucion': 'Solución aplicada',
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      print(response.body);
     }
   }
 
@@ -254,13 +286,12 @@ class _TicketDetailViewState extends State<TicketDetailView> {
       if (solution == null || solution.trim().isEmpty) return;
 
       setState(() {
-        _status = 'Cerrado';
-        _ticket['status'] = 'Cerrado';
-        _ticket['closedSolution'] = solution;
+        _status = newStatus;
+        _ticket['status'] = newStatus;
       });
 
-      await _addComment(text: 'Ticket cerrado. Solución: $solution');
-      return;
+      await _updateStatusBackend(newStatus); // ESTE ES EL FIX
+      await _addComment(text: 'Estado actualizado a "$newStatus".');
     }
 
     // Técnico reabre
@@ -278,6 +309,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
         _ticket['reopenReason'] = reason;
       });
 
+      await _updateStatusBackend(newStatus);
       await _addComment(
         text: 'Ticket reabierto a "$newStatus". Motivo: $reason',
       );
@@ -292,6 +324,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
         _ticket['status'] = newStatus;
       });
 
+      await _updateStatusBackend(newStatus); //
       await _addComment(text: 'Estado actualizado a "$newStatus".');
 
       return;

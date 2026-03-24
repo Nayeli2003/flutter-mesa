@@ -124,12 +124,14 @@ class _TechnicianDashboardViewState extends State<TechnicianDashboardView> {
                         final IconData pIcon = _priorityIcon(priority);
 
                         return InkWell(
-                          onTap: () {
-                            Navigator.pushNamed(
+                          onTap: () async {
+                            await Navigator.pushNamed(
                               context,
                               '/ticket-detail',
                               arguments: id,
                             );
+
+                            await _loadTickets(); 
                           },
                           child: Container(
                             padding: const EdgeInsets.all(14),

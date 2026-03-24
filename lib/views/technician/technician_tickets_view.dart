@@ -73,8 +73,13 @@ class _TechnicianTicketsViewState extends State<TechnicianTicketsView> {
       setState(() => _loading = false);
       return;
     }
+
+    final url = _isClosedScreen
+        ? '$baseUrl/api/tickets/cerrados'
+        : '$baseUrl/api/mis-tickets';
+
     final res = await http.get(
-      Uri.parse('$baseUrl/api/mis-tickets'),
+      Uri.parse(url),
       headers: {
         'Authorization': 'Bearer ${Session.token}',
         'Accept': 'application/json',
@@ -231,8 +236,14 @@ class _TechnicianTicketsViewState extends State<TechnicianTicketsView> {
 
                     Expanded(
                       child: isWide
-                          ? _TicketsTable(tickets: filtered)
-                          : _TicketsCards(tickets: filtered),
+                          ? _TicketsTable(
+                              tickets: filtered,
+                              onRefresh: _loadTickets,
+                            )
+                          : _TicketsCards(
+                              tickets: filtered,
+                              onRefresh: _loadTickets,
+                            ),
                     ),
                   ],
                 ),
@@ -336,7 +347,8 @@ class _ClosedFiltersBar extends StatelessWidget {
 
 class _TicketsCards extends StatelessWidget {
   final List<TicketModel> tickets;
-  const _TicketsCards({required this.tickets});
+  final Future<void> Function() onRefresh;
+  const _TicketsCards({required this.tickets, required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
@@ -367,13 +379,13 @@ class _TicketsCards extends StatelessWidget {
             ),
             isThreeLine: true,
             trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              // Usa tu ticket_detail_view.dart (ajusta la ruta si ya tienes otra)
-              Navigator.pushNamed(
+            onTap: () async {
+              await Navigator.pushNamed(
                 context,
                 '/ticket-detail',
                 arguments: t.folio,
               );
+              await onRefresh(); // 🔥 ahora sí funciona
             },
           ),
         );
@@ -386,7 +398,8 @@ class _TicketsCards extends StatelessWidget {
 
 class _TicketsTable extends StatelessWidget {
   final List<TicketModel> tickets;
-  const _TicketsTable({required this.tickets});
+  final Future<void> Function() onRefresh;
+  const _TicketsTable({required this.tickets, required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
@@ -420,12 +433,14 @@ class _TicketsTable extends StatelessWidget {
                 DataCell(_PriorityChip(priority: t.priority)),
                 DataCell(
                   TextButton(
-                    onPressed: () {
-                      Navigator.pushNamed(
+                    onPressed: () async {
+                      await Navigator.pushNamed(
                         context,
                         '/ticket-detail',
                         arguments: t.folio,
                       );
+
+                      await onRefresh();
                     },
                     child: const Text('Ver'),
                   ),
