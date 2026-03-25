@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:mesa_sana/widgets/app_drawer.dart';
 
-class AdminDashboardView extends StatelessWidget {
+class AdminDashboardView extends StatefulWidget {
   const AdminDashboardView({super.key});
 
+  @override
+  State<AdminDashboardView> createState() => _AdminDashboardViewState();
+}
+
+class _AdminDashboardViewState extends State<AdminDashboardView> {
   @override
   Widget build(BuildContext context) {
     // Datos MOCK (solo para la vista)
@@ -20,10 +25,7 @@ class AdminDashboardView extends StatelessWidget {
       'Verde (Bajo)': 91,
     };
 
-    final sla = {
-      'SLA cumplidos': 110,
-      'SLA vencidos': 18,
-    };
+    final sla = {'SLA cumplidos': 110, 'SLA vencidos': 18};
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F3),
@@ -41,12 +43,9 @@ class AdminDashboardView extends StatelessWidget {
         iconTheme: const IconThemeData(color: Color(0xFF1F2937)),
       ),
 
-        // ESTE ES EL MENUUUUU
-      drawer: const AppDrawer(
-        role: UserRole.admin, 
-        title: 'Admin'
-        ),
-      // Responsive 
+      // ESTE ES EL MENUUUUU
+      drawer: const AppDrawer(role: UserRole.admin, title: 'Admin'),
+      // Responsive
       body: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
@@ -57,7 +56,9 @@ class AdminDashboardView extends StatelessWidget {
           final bool isDesktop = width >= 1024;
 
           // Ancho máximo del contenido (para que no se estire en escritorio)
-          final double contentMaxWidth = isDesktop ? 900 : (isTablet ? 650 : 480);
+          final double contentMaxWidth = isDesktop
+              ? 900
+              : (isTablet ? 650 : 480);
 
           // Grid adaptable
           final int gridCols = isDesktop ? 4 : (isTablet ? 3 : 2);
@@ -95,8 +96,10 @@ class AdminDashboardView extends StatelessWidget {
                           CircleAvatar(
                             radius: 22,
                             backgroundColor: Color(0xFF4CAF50),
-                            child: Icon(Icons.admin_panel_settings,
-                                color: Colors.white),
+                            child: Icon(
+                              Icons.admin_panel_settings,
+                              color: Colors.white,
+                            ),
                           ),
                           SizedBox(width: 12),
                           Expanded(
@@ -244,10 +247,16 @@ class AdminDashboardView extends StatelessWidget {
                                 onPressed: () {
                                   Navigator.pushNamed(context, '/admin-users');
                                 },
-                                icon: const Icon(Icons.group, color: Colors.white),
+                                icon: const Icon(
+                                  Icons.group,
+                                  color: Colors.white,
+                                ),
                                 label: const Text(
                                   'Gestión de usuarios',
-                                  style: TextStyle(fontSize: 15, color: Colors.white),
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                             ),
@@ -258,18 +267,29 @@ class AdminDashboardView extends StatelessWidget {
                               height: 46,
                               child: OutlinedButton.icon(
                                 style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(color: Color(0xFF4CAF50)),
+                                  side: const BorderSide(
+                                    color: Color(0xFF4CAF50),
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(14),
                                   ),
                                 ),
                                 onPressed: () {
-                                  Navigator.pushNamed(context, '/admin-metrics');
+                                  Navigator.pushNamed(
+                                    context,
+                                    '/admin-metrics',
+                                  );
                                 },
-                                icon: const Icon(Icons.bar_chart, color: Color(0xFF4CAF50)),
+                                icon: const Icon(
+                                  Icons.bar_chart,
+                                  color: Color(0xFF4CAF50),
+                                ),
                                 label: const Text(
                                   'Ver métricas',
-                                  style: TextStyle(fontSize: 15, color: Color(0xFF4CAF50)),
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    color: Color(0xFF4CAF50),
+                                  ),
                                 ),
                               ),
                             ),
@@ -290,10 +310,16 @@ class AdminDashboardView extends StatelessWidget {
                                 ),
                               ),
                               onPressed: () {},
-                              icon: const Icon(Icons.group, color: Colors.white),
+                              icon: const Icon(
+                                Icons.group,
+                                color: Colors.white,
+                              ),
                               label: const Text(
                                 'Gestión de usuarios',
-                                style: TextStyle(fontSize: 15, color: Colors.white),
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                           ),
@@ -303,16 +329,24 @@ class AdminDashboardView extends StatelessWidget {
                             height: 46,
                             child: OutlinedButton.icon(
                               style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Color(0xFF4CAF50)),
+                                side: const BorderSide(
+                                  color: Color(0xFF4CAF50),
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14),
                                 ),
                               ),
                               onPressed: () {},
-                              icon: const Icon(Icons.bar_chart, color: Color(0xFF4CAF50)),
+                              icon: const Icon(
+                                Icons.bar_chart,
+                                color: Color(0xFF4CAF50),
+                              ),
                               label: const Text(
                                 'Ver métricas detalladas',
-                                style: TextStyle(fontSize: 15, color: Color(0xFF4CAF50)),
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: Color(0xFF4CAF50),
+                                ),
                               ),
                             ),
                           ),
@@ -427,10 +461,7 @@ class _InfoTile extends StatelessWidget {
   final String label;
   final String value;
 
-  const _InfoTile({
-    required this.label,
-    required this.value,
-  });
+  const _InfoTile({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {

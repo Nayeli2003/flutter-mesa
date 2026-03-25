@@ -169,17 +169,14 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     if (newStatus == 'En proceso') estadoId = 2;
     if (newStatus == 'Cerrado') estadoId = 3;
 
-    final response = await http.post(
-      Uri.parse('$baseUrl/api/tickets/$_ticketId/resolver'),
+    final response = await http.patch(
+      Uri.parse('$baseUrl/api/tickets/$_ticketId/estado'),
       headers: {
         'Authorization': 'Bearer ${Session.token}',
         'Accept': 'application/json',
         'Content-Type': 'application/json',
       },
-      body: jsonEncode({
-        'id_estado': estadoId,
-        'solucion': 'Solución aplicada',
-      }),
+      body: jsonEncode({'id_estado': estadoId}),
     );
 
     if (response.statusCode != 200) {
@@ -290,7 +287,11 @@ class _TicketDetailViewState extends State<TicketDetailView> {
         _ticket['status'] = newStatus;
       });
 
-      await _updateStatusBackend(newStatus); // ESTE ES EL FIX
+      if (_isAdmin) {
+        await _updateStatusBackend(newStatus);
+      } else if (_isTechnician) {
+        await _resolverComoTecnico(newStatus);
+      } // ESTE ES EL FIX
       await _addComment(text: 'Estado actualizado a "$newStatus".');
     }
 
@@ -328,6 +329,33 @@ class _TicketDetailViewState extends State<TicketDetailView> {
       await _addComment(text: 'Estado actualizado a "$newStatus".');
 
       return;
+    }
+  }
+
+  Future<void> _resolverComoTecnico(String newStatus) async {
+    if (_ticketId == null) return;
+
+    int estadoId = 1;
+
+    if (newStatus == 'Abierto') estadoId = 1;
+    if (newStatus == 'En proceso') estadoId = 2;
+    if (newStatus == 'Cerrado') estadoId = 3;
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/tickets/$_ticketId/resolver'),
+      headers: {
+        'Authorization': 'Bearer ${Session.token}',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'id_estado': estadoId,
+        'solucion': 'Solución aplicada',
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      print(response.body);
     }
   }
 

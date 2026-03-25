@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../widgets/app_drawer.dart';
 import 'dart:ui' show PointerDeviceKind;
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../../services/session.dart';
+
+const String baseUrl = 'http://127.0.0.1:8000';
 
 enum AdminTicketStatus { abierto, enProceso, cerrado }
 
@@ -49,48 +54,75 @@ class _AdminTicketsViewState extends State<AdminTicketsView> {
   DateTime? _fromDate;
   DateTime? _toDate;
 
+  List<AdminTicketModel> _tickets = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTickets();
+  }
+
+  AdminTicketStatus _mapStatus(String s) {
+    final v = s.toLowerCase();
+    if (v.contains('cerr')) return AdminTicketStatus.cerrado;
+    if (v.contains('proceso')) return AdminTicketStatus.enProceso;
+    return AdminTicketStatus.abierto;
+  }
+
+  AdminTicketPriority _mapPriority(String p) {
+    final v = p.toLowerCase();
+    if (v.contains('rojo')) return AdminTicketPriority.rojo;
+    if (v.contains('naranja')) return AdminTicketPriority.naranja;
+    return AdminTicketPriority.verde;
+  }
+
   @override
   void dispose() {
     _searchCtrl.dispose();
     super.dispose();
   }
 
-  // Datos dummy
-  List<AdminTicketModel> _ticketsFake() => [
-    AdminTicketModel(
-      folio: 'TK-001',
-      titulo: 'Sin internet en recepción',
-      branchId: 'SUC-001',
-      sucursal: 'Sucursal Centro',
-      tecnico: 'Juan Pérez',
-      fecha: DateTime(2026, 1, 14, 9, 20),
-      status: AdminTicketStatus.abierto,
-      priority: AdminTicketPriority.rojo,
-      slaCumple: false,
-    ),
-    AdminTicketModel(
-      folio: 'TK-002',
-      titulo: 'Impresora no imprime',
-      branchId: 'SUC-002',
-      sucursal: 'Sucursal Norte',
-      tecnico: 'Ana López',
-      fecha: DateTime(2026, 1, 14, 13, 10),
-      status: AdminTicketStatus.enProceso,
-      priority: AdminTicketPriority.naranja,
-      slaCumple: true,
-    ),
-    AdminTicketModel(
-      folio: 'TK-003',
-      titulo: 'Actualización aplicada',
-      branchId: 'SUC-003',
-      sucursal: 'Sucursal Sur',
-      tecnico: 'Juan Pérez',
-      fecha: DateTime(2026, 1, 13, 9, 5),
-      status: AdminTicketStatus.cerrado,
-      priority: AdminTicketPriority.verde,
-      slaCumple: true,
-    ),
-  ];
+  Future<void> _loadTickets() async {
+    if (Session.token == null) {
+      setState(() => _loading = false);
+      return;
+    }
+
+    final res = await http.get(
+      Uri.parse('$baseUrl/api/tickets'),
+      headers: {
+        'Authorization': 'Bearer ${Session.token}',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (!mounted) return;
+
+    if (res.statusCode == 200) {
+      final List data = jsonDecode(res.body);
+
+      setState(() {
+        _tickets = data.map((e) {
+          return AdminTicketModel(
+            folio: e['id_ticket'].toString(),
+            titulo: (e['titulo'] ?? '').toString(),
+            branchId: e['id_sucursal'].toString(),
+            sucursal: (e['sucursal'] ?? '').toString(),
+            tecnico: (e['tecnico'] ?? 'Sin asignar').toString(),
+            fecha: DateTime.parse(e['fecha_creacion']),
+            status: _mapStatus((e['estado'] ?? '').toString()),
+            priority: _mapPriority((e['prioridad'] ?? '').toString()),
+            slaCumple: true,
+          );
+        }).toList();
+
+        _loading = false;
+      });
+    } else {
+      setState(() => _loading = false);
+    }
+  }
 
   Future<void> _pickFromDate() async {
     final picked = await showDatePicker(
@@ -128,7 +160,11 @@ class _AdminTicketsViewState extends State<AdminTicketsView> {
 
   @override
   Widget build(BuildContext context) {
-    final all = _ticketsFake();
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    final all = _tickets;
 
     // filtros
     List<AdminTicketModel> filtered = all;
@@ -693,19 +729,7 @@ class _AdminTicketsCards extends StatelessWidget {
               Navigator.pushNamed(
                 context,
                 '/ticket-detail',
-                arguments: {
-                  'id': t.folio,
-                  'title': t.titulo,
-                  'branch': t.sucursal,
-                  'priority': _priorityText(t.priority).toUpperCase(),
-                  'status': _statusText(t.status),
-                  'createdAt': _fmtDate(t.fecha),
-                  'role': 'admin',
-                  'category': 'Admin',
-                  'description': 'Detalle pendiente de backend',
-                  'evidences': <Map<String, dynamic>>[],
-                  'comments': <Map<String, String>>[],
-                },
+                arguments: t.folio,
               );
             },
           ),
@@ -858,22 +882,7 @@ class _AdminTicketsTableState extends State<_AdminTicketsTable> {
                                 Navigator.pushNamed(
                                   context,
                                   '/ticket-detail',
-                                  arguments: {
-                                    'id': t.folio,
-                                    'title': t.titulo,
-                                    'branch': t.sucursal,
-                                    'priority': _priorityText(
-                                      t.priority,
-                                    ).toUpperCase(),
-                                    'status': _statusText(t.status),
-                                    'createdAt': _fmtDate(t.fecha),
-                                    'role': 'admin',
-                                    'category': 'Admin',
-                                    'description':
-                                        'Detalle pendiente de backend',
-                                    'evidences': <Map<String, dynamic>>[],
-                                    'comments': <Map<String, String>>[],
-                                  },
+                                  arguments: t.folio,
                                 );
                               },
                               child: const Text('Ver'),
