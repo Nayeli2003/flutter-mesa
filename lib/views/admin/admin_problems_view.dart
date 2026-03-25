@@ -24,30 +24,35 @@ class _AdminProblemsViewState extends State<AdminProblemsView> {
       {
         'id_tipo_problema': 1,
         'nombre': 'Error al facturar al cliente',
+        'descripcion': 'No permite generar factura correctamente',
         'prioridad': 'alta',
         'activo': true,
       },
       {
         'id_tipo_problema': 2,
         'nombre': 'Falla de conexión',
+        'descripcion': 'No hay acceso a internet',
         'prioridad': 'media',
         'activo': true,
       },
       {
         'id_tipo_problema': 3,
         'nombre': 'Producto Talla/Color',
+        'descripcion': 'No hay acceso a internet',
         'prioridad': 'baja',
         'activo': true,
       },
       {
         'id_tipo_problema': 4,
         'nombre': 'Falla en el correo',
+        'descripcion': 'No hay acceso a internet',
         'prioridad': 'media',
         'activo': true,
       },
       {
         'id_tipo_problema': 5,
         'nombre': 'Error en serie de factura',
+        'descripcion': 'No hay acceso a internet',
         'prioridad': 'alta',
         'activo': true,
       },
@@ -190,10 +195,8 @@ void toggleEstado(int id) async {
                     itemBuilder: (context, index) {
                       final item = problemas[index];
 
-                      return _ProblemCard(
-  nombre: item['nombre'],
-  prioridad: item['prioridad'],
-  activo: item['activo'],
+                      return ProblemCard(
+  item: item,
   onEdit: () => editar(item),
   onToggle: () => toggleEstado(item['id_tipo_problema']),
   onDelete: () => eliminar(item['id_tipo_problema']),
@@ -216,100 +219,145 @@ void toggleEstado(int id) async {
   }
 }
 
-class _ProblemCard extends StatelessWidget {
-  final String nombre;
-  final String prioridad;
-  final bool activo;
-  final VoidCallback onEdit;
-  final VoidCallback onToggle;
-  final VoidCallback onDelete;
+class ProblemCard extends StatelessWidget {
+  final Map item;
+  final Function onEdit;
+  final Function onToggle;
+  final Function onDelete;
 
-  const _ProblemCard({
-    required this.nombre,
-    required this.prioridad,
-    required this.activo,
+  const ProblemCard({
+    super.key,
+    required this.item,
     required this.onEdit,
     required this.onToggle,
     required this.onDelete,
   });
 
-  Color _colorPrioridad() {
+  Color _getColor(String prioridad) {
     switch (prioridad.toLowerCase()) {
       case 'alta':
-        return Colors.red.shade300;
+        return Colors.red;
       case 'media':
-        return Colors.orange.shade300;
+        return Colors.orange;
+      case 'baja':
+        return Colors.green;
       default:
-        return Colors.green.shade300;
+        return Colors.grey;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final prioridad = item['prioridad'] ?? 'baja';
+    final color = _getColor(prioridad);
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            blurRadius: 6,
+            color: Colors.black12,
           )
         ],
       ),
       child: Row(
         children: [
-
-          Expanded(
-            flex: 3,
-            child: Text(nombre),
-          ),
-
-          Expanded(
-            flex: 2,
-            child: Chip(
-              label: Text(prioridad),
-              backgroundColor: _colorPrioridad(),
-            ),
-          ),
-
+          /// 🟢 NOMBRE
           Expanded(
             flex: 2,
             child: Text(
-              activo ? 'Activo' : 'Inactivo',
+              item['nombre'],
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+
+          /// 🟡 DESCRIPCIÓN
+          Expanded(
+            flex: 3,
+            child: Text(
+              item['descripcion'] ?? '',
+              style: const TextStyle(color: Colors.black54),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+
+          /// 🔴 PRIORIDAD (DROPDOWN)
+          Expanded(
+            flex: 2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: DropdownButton<String>(
+                value: prioridad,
+                isExpanded: true,
+                underline: const SizedBox(),
+                icon: const Icon(Icons.arrow_drop_down),
+                items: ['alta', 'media', 'baja']
+                    .map((p) => DropdownMenuItem(
+                          value: p,
+                          child: Text(
+                            p,
+                            style: TextStyle(color: color),
+                          ),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  // aquí llamas update prioridad
+                },
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 30), // separación
+
+          /// 🟢 ESTADO
+          Expanded(
+            flex: 1,
+            child: Text(
+              item['activo'] ? 'Activo' : 'Inactivo',
               style: TextStyle(
-                color: activo ? Colors.green : Colors.red,
+                color: item['activo'] ? Colors.green : Colors.red,
                 fontWeight: FontWeight.bold,
               ),
             ),
           ),
 
-          Expanded(
-            flex: 3,
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: onEdit,
-                ),
-                IconButton(
-                  icon: Icon(
-                    activo ? Icons.block : Icons.check_circle,
-                    color: activo ? Colors.orange : Colors.green,
-                  ),
-                  onPressed: onToggle,
-                ),
-                if (!activo)
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: onDelete,
-                  ),
-              ],
-            ),
-          ),
+          /// ⚙️ ACCIONES
+          Row(
+  children: [
+    /// ✏️ EDITAR
+    IconButton(
+      icon: const Icon(Icons.edit, color: Colors.black54),
+      onPressed: () => onEdit(),
+    ),
+
+    /// 🟢 SI ESTÁ ACTIVO → DESACTIVAR
+    if (item['activo'])
+      IconButton(
+        icon: const Icon(Icons.block, color: Colors.orange),
+        onPressed: () => onToggle(),
+      ),
+
+    /// 🔴 SI ESTÁ INACTIVO → ACTIVAR + ELIMINAR
+    if (!item['activo']) ...[
+      IconButton(
+        icon: const Icon(Icons.check_circle, color: Colors.green),
+        onPressed: () => onToggle(), // activar
+      ),
+      IconButton(
+        icon: const Icon(Icons.delete, color: Colors.red),
+        onPressed: () => onDelete(),
+      ),
+    ],
+  ],
+)
         ],
       ),
     );
