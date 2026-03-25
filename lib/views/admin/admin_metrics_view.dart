@@ -89,7 +89,18 @@ class _AdminMetricsViewState extends State<AdminMetricsView> {
 
         _ticketsByPriority = {'ROJO': rojo, 'NARANJA': naranja, 'VERDE': verde};
 
-        _sla = {'Cumplidos': data.length - cerrados, 'Vencidos': cerrados};
+        int cumple = 0;
+        int noCumple = 0;
+
+        for (var t in data) {
+          if (t['sla_cumple'] == true) {
+            cumple++;
+          } else {
+            noCumple++;
+          }
+        }
+
+        _sla = {'Cumplidos': cumple, 'Vencidos': noCumple};
 
         _resolvedByTech = techList;
 

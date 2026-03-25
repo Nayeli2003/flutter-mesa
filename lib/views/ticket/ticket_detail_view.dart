@@ -7,6 +7,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:html' as html;
+import 'package:path_provider/path_provider.dart';
+import 'package:open_file/open_file.dart';
 
 const String baseUrl = 'http://localhost:8000';
 
@@ -359,6 +362,52 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     }
   }
 
+  /*PDF*/
+  Future<void> _downloadTechnicalReport() async {
+    if (_ticketId == null) return;
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/tickets/$_ticketId/memoria'),
+      headers: {
+        'Authorization': 'Bearer ${Session.token}',
+        'Accept': 'application/pdf',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final bytes = response.bodyBytes;
+
+      if (kIsWeb) {
+        // WEB
+        final blob = html.Blob([bytes]);
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        html.AnchorElement(href: url)
+          ..setAttribute("download", "memoria_ticket_$_ticketId.pdf")
+          ..click();
+        html.Url.revokeObjectUrl(url);
+      } else {
+        // MOBILE / DESKTOP
+        final dir = await getApplicationDocumentsDirectory();
+        final file = File('${dir.path}/memoria_ticket_$_ticketId.pdf');
+
+        await file.writeAsBytes(bytes);
+
+        // ABRIR AUTOMÁTICAMENTE
+        await OpenFile.open(file.path);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF guardado en: ${file.path}')),
+        );
+      }
+    } else {
+      print(response.body);
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Error al descargar PDF')));
+    }
+  }
+
   Widget _emptyPreview() {
     return Container(
       width: 44,
@@ -366,16 +415,6 @@ class _TicketDetailViewState extends State<TicketDetailView> {
       alignment: Alignment.center,
       child: const Icon(Icons.image),
     );
-  }
-
-  void _downloadTechnicalReport() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Descargando memoria técnica...')),
-    );
-
-    // Aquí después conectaremos backend
-    // Por ahora es solo simulación
-    //launchUrl(Uri.parse('$baseUrl/tickets/$id/pdf'));
   }
 
   @override

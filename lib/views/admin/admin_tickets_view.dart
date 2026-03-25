@@ -113,7 +113,7 @@ class _AdminTicketsViewState extends State<AdminTicketsView> {
             fecha: DateTime.parse(e['fecha_creacion']),
             status: _mapStatus((e['estado'] ?? '').toString()),
             priority: _mapPriority((e['prioridad'] ?? '').toString()),
-            slaCumple: true,
+            slaCumple: e['sla_cumple'] ?? false,
           );
         }).toList();
 
