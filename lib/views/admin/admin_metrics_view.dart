@@ -1,6 +1,9 @@
 import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import '../../widgets/app_drawer.dart';
+import 'package:http/http.dart' as http;
+import '../../services/session.dart';
+import 'dart:convert';
 
 class AdminMetricsView extends StatefulWidget {
   const AdminMetricsView({super.key});
@@ -10,35 +13,92 @@ class AdminMetricsView extends StatefulWidget {
 }
 
 class _AdminMetricsViewState extends State<AdminMetricsView> {
+  Map<String, int> _ticketsByStatus = {};
+  Map<String, int> _ticketsByPriority = {};
+  Map<String, int> _sla = {};
+  List<Map<String, dynamic>> _resolvedByTech = [];
+
+  bool _loading = true;
   DateTime? _from;
   DateTime? _to;
 
   // ===== MOCK DATA =====
-  // Para backend: aquí vendría de tu API según el rango de fechas.
-  final Map<String, int> _ticketsByStatus = {
-    'Abiertos': 34,
-    'En proceso': 61,
-    'Cerrados': 33,
-  };
+  @override
+  void initState() {
+    super.initState();
+    _loadMetrics();
+  }
 
-  final Map<String, int> _ticketsByPriority = {
-    'ROJO': 12,
-    'NARANJA': 25,
-    'VERDE': 91,
-  };
+  Future<void> _loadMetrics() async {
+    final res = await http.get(
+      Uri.parse('http://127.0.0.1:8000/api/tickets'),
+      headers: {
+        'Authorization': 'Bearer ${Session.token}',
+        'Accept': 'application/json',
+      },
+    );
 
-  final Map<String, int> _sla = {
-    'Cumplidos': 110,
-    'Vencidos': 18,
-  };
+    if (res.statusCode == 200) {
+      final List data = jsonDecode(res.body);
 
-  // Tickets resueltos por técnico (CERRADOS)
-  final List<Map<String, dynamic>> _resolvedByTech = [
-    {'techId': 'TEC-001', 'techName': 'Juan Pérez', 'resolved': 14},
-    {'techId': 'TEC-002', 'techName': 'Ana López', 'resolved': 9},
-    {'techId': 'TEC-003', 'techName': 'Luis Hernández', 'resolved': 6},
-    {'techId': 'TEC-004', 'techName': 'María Gómez', 'resolved': 4},
-  ];
+      int abiertos = 0;
+      int proceso = 0;
+      int cerrados = 0;
+
+      int rojo = 0;
+      int naranja = 0;
+      int verde = 0;
+
+      Map<String, int> techMap = {};
+
+      for (var t in data) {
+        final estado = (t['estado'] ?? '').toString().toLowerCase();
+        final prioridad = (t['prioridad'] ?? '').toString().toLowerCase();
+        final tecnico = (t['tecnico'] ?? 'Sin asignar').toString();
+
+        // ESTADOS
+        if (estado.contains('abierto')) abiertos++;
+        if (estado.contains('proceso')) proceso++;
+        if (estado.contains('cerrado')) {
+          cerrados++;
+
+          // CONTAR POR TECNICO SOLO CERRADOS
+          techMap[tecnico] = (techMap[tecnico] ?? 0) + 1;
+        }
+
+        // PRIORIDADES
+        if (prioridad.contains('alta')) rojo++;
+        if (prioridad.contains('media')) naranja++;
+        if (prioridad.contains('baja')) verde++;
+      }
+
+      // CONVERTIR TECNICOS A LISTA
+      List<Map<String, dynamic>> techList = techMap.entries.map((e) {
+        return {'techId': e.key, 'techName': e.key, 'resolved': e.value};
+      }).toList();
+
+      // ORDENAR
+      techList.sort((a, b) => b['resolved'].compareTo(a['resolved']));
+
+      setState(() {
+        _ticketsByStatus = {
+          'Abiertos': abiertos,
+          'En proceso': proceso,
+          'Cerrados': cerrados,
+        };
+
+        _ticketsByPriority = {'ROJO': rojo, 'NARANJA': naranja, 'VERDE': verde};
+
+        _sla = {'Cumplidos': data.length - cerrados, 'Vencidos': cerrados};
+
+        _resolvedByTech = techList;
+
+        _loading = false;
+      });
+    } else {
+      _loading = false;
+    }
+  }
 
   Future<void> _pickFrom() async {
     final now = DateTime.now();
@@ -103,6 +163,9 @@ class _AdminMetricsViewState extends State<AdminMetricsView> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     final int totalTickets = _ticketsByStatus.values.fold(0, (a, b) => a + b);
 
     // Ordenar técnicos por resueltos desc
@@ -141,8 +204,9 @@ class _AdminMetricsViewState extends State<AdminMetricsView> {
           final bool isTablet = width >= 600 && width < 1024;
           final bool isDesktop = width >= 1024;
 
-          final double contentMaxWidth =
-              isDesktop ? 980 : (isTablet ? 760 : double.infinity);
+          final double contentMaxWidth = isDesktop
+              ? 980
+              : (isTablet ? 760 : double.infinity);
 
           final int gridCols = isDesktop ? 4 : (isTablet ? 3 : 2);
 
@@ -207,8 +271,7 @@ class _AdminMetricsViewState extends State<AdminMetricsView> {
                                 // TODO: aquí llamarías API con (_from, _to)
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content:
-                                        Text('Filtro aplicado (UI mock)'),
+                                    content: Text('Filtro aplicado (UI mock)'),
                                   ),
                                 );
                               },
@@ -304,8 +367,9 @@ class _AdminMetricsViewState extends State<AdminMetricsView> {
                           final c = _priorityColor(e.key);
                           final max = _ticketsByPriority.values.isEmpty
                               ? 1
-                              : _ticketsByPriority.values
-                                  .reduce((a, b) => a > b ? a : b);
+                              : _ticketsByPriority.values.reduce(
+                                  (a, b) => a > b ? a : b,
+                                );
 
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 10),
@@ -323,8 +387,7 @@ class _AdminMetricsViewState extends State<AdminMetricsView> {
                     const SizedBox(height: 14),
 
                     // ===== Tickets resueltos por técnico =====
-                    const _SectionTitle(
-                        title: 'Tickets resueltos por técnico'),
+                    const _SectionTitle(title: 'Tickets resueltos por técnico'),
                     const SizedBox(height: 10),
 
                     if (isMobile)
@@ -343,7 +406,8 @@ class _AdminMetricsViewState extends State<AdminMetricsView> {
                                 color: const Color(0xFFF9FAFB),
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                    color: const Color(0xFFE5E7EB)),
+                                  color: const Color(0xFFE5E7EB),
+                                ),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -360,7 +424,9 @@ class _AdminMetricsViewState extends State<AdminMetricsView> {
                                     label: 'Resueltos',
                                     value: resolved,
                                     color: const Color(0xFF2563EB),
-                                    maxValue: maxResolved == 0 ? 1 : maxResolved,
+                                    maxValue: maxResolved == 0
+                                        ? 1
+                                        : maxResolved,
                                   ),
                                 ],
                               ),
@@ -510,7 +576,7 @@ class _StatCard extends StatelessWidget {
                 ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );
@@ -659,11 +725,11 @@ class _ResolvedByTechTableState extends State<_ResolvedByTechTable> {
                                   child: LinearProgressIndicator(
                                     value: pct,
                                     minHeight: 10,
-                                    backgroundColor:
-                                        const Color(0xFFE5E7EB),
+                                    backgroundColor: const Color(0xFFE5E7EB),
                                     valueColor:
                                         const AlwaysStoppedAnimation<Color>(
-                                            Color(0xFF2563EB)),
+                                          Color(0xFF2563EB),
+                                        ),
                                   ),
                                 ),
                               ),

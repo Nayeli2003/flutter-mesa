@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mesa_sana/widgets/app_drawer.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../../services/session.dart';
 
 class AdminDashboardView extends StatefulWidget {
   const AdminDashboardView({super.key});
@@ -9,23 +12,82 @@ class AdminDashboardView extends StatefulWidget {
 }
 
 class _AdminDashboardViewState extends State<AdminDashboardView> {
+  Map<String, int> stats = {};
+  Map<String, int> priority = {};
+  Map<String, int> sla = {};
+
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboard();
+  }
+
+  Future<void> _loadDashboard() async {
+    final res = await http.get(
+      Uri.parse('http://127.0.0.1:8000/api/tickets'),
+      headers: {
+        'Authorization': 'Bearer ${Session.token}',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (res.statusCode == 200) {
+      final List data = jsonDecode(res.body);
+
+      int total = data.length;
+      int abiertos = 0;
+      int proceso = 0;
+      int cerrados = 0;
+
+      int rojo = 0;
+      int naranja = 0;
+      int verde = 0;
+
+      for (var t in data) {
+        final estado = (t['estado'] ?? '').toString().toLowerCase();
+        final prioridad = (t['prioridad'] ?? '').toString().toLowerCase();
+
+        if (estado.contains('abierto')) abiertos++;
+        if (estado.contains('proceso')) proceso++;
+        if (estado.contains('cerrado')) cerrados++;
+
+        if (prioridad.contains('rojo') || prioridad.contains('alta')) rojo++;
+        if (prioridad.contains('naranja') || prioridad.contains('media'))
+          naranja++;
+        if (prioridad.contains('verde') || prioridad.contains('baja')) verde++;
+      }
+
+      setState(() {
+        stats = {
+          'Total tickets': total,
+          'Abiertos': abiertos,
+          'En proceso': proceso,
+          'Cerrados': cerrados,
+        };
+
+        priority = {
+          'Rojo (Urgente)': rojo,
+          'Naranja (Medio)': naranja,
+          'Verde (Bajo)': verde,
+        };
+
+        sla = {'SLA cumplidos': total - cerrados, 'SLA vencidos': cerrados};
+
+        _loading = false;
+      });
+    } else {
+      _loading = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     // Datos MOCK (solo para la vista)
-    final stats = {
-      'Total tickets': 128,
-      'Abiertos': 34,
-      'En proceso': 61,
-      'Cerrados': 33,
-    };
-
-    final priority = {
-      'Rojo (Urgente)': 12,
-      'Naranja (Medio)': 25,
-      'Verde (Bajo)': 91,
-    };
-
-    final sla = {'SLA cumplidos': 110, 'SLA vencidos': 18};
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F3),
@@ -133,7 +195,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                       children: [
                         _StatCard(
                           title: 'Total',
-                          value: '${stats['Total tickets']}',
+                          value: '${stats['Total tickets'] ?? 0}',
                           icon: Icons.confirmation_number,
                           color: const Color(0xFF4CAF50),
                         ),
