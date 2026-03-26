@@ -13,6 +13,7 @@ import 'views/admin/admin_tickets_view.dart';
 import 'views/admin/admin_users_view.dart';
 import 'views/admin/admin_metrics_view.dart';
 import 'views/admin/admin_problems_view.dart';
+import 'views/admin/admin_create_task_view.dart';
 
 void main() async {
   // necesario para usar await antes de runApp
@@ -111,6 +112,7 @@ class MyApp extends StatelessWidget {
             const GuardedRoute(child: AdminMetricsView()),//metricas que puede ver el administrador
             '/admin-problems': (_) =>
     const GuardedRoute(child: AdminProblemsView()),
+    '/admin-create-task': (context) => const AdminCreateTaskView(),
       },
     );
   }
