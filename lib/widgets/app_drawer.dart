@@ -93,6 +93,7 @@ class AppDrawer extends StatelessWidget {
           _MenuItem(Icons.confirmation_number, 'Todos los tickets', route: '/admin-tickets'),
           _MenuItem(Icons.confirmation_number, 'Problemas', route: '/admin-problems'),
           _MenuItem(Icons.task, 'Crear tarea', route: '/admin-create-task'),
+          _MenuItem(Icons.task, 'Ver tarea', route: '/admin-task'),
         ];
 
       case UserRole.tecnico:
@@ -100,6 +101,7 @@ class AppDrawer extends StatelessWidget {
           _MenuItem(Icons.home, 'Dashboard', route: '/technician'),
           _MenuItem(Icons.play_circle, 'En proceso', route: '/tech-inprogress'),
           _MenuItem(Icons.check_circle, 'Cerrados', route: '/tech-closed'),
+          _MenuItem(Icons.task, 'Mis tareas', route: '/technician-tasks'),
         ];
 
 

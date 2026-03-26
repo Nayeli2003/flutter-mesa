@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'services/session.dart'; 
+import 'services/session.dart';
 // vistas
 import 'views/login_view.dart';
 import 'views/admin/admin_dashboard_view.dart';
@@ -14,6 +14,8 @@ import 'views/admin/admin_users_view.dart';
 import 'views/admin/admin_metrics_view.dart';
 import 'views/admin/admin_problems_view.dart';
 import 'views/admin/admin_create_task_view.dart';
+import 'views/technician/technician_tasks_view.dart';
+import 'views/admin/admin_tasks_view.dart';
 
 void main() async {
   // necesario para usar await antes de runApp
@@ -40,9 +42,7 @@ class GuardedRoute extends StatelessWidget {
       });
 
       // mientras redirige, muestra loader
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     // si hay token, deja pasar
@@ -93,26 +93,34 @@ class MyApp extends StatelessWidget {
         '/help': (context) => const GuardedRoute(child: HelpView()),
 
         '/tech-inprogress': (_) => const GuardedRoute(
-              child: TechnicianTicketsView(
-                title: 'En proceso',
-                statusFilter: TicketStatus.enProceso,
-              ),
-            ),
+          child: TechnicianTicketsView(
+            title: 'En proceso',
+            statusFilter: TicketStatus.enProceso,
+          ),
+        ),
         '/tech-closed': (_) => const GuardedRoute(
-              child: TechnicianTicketsView(
-                title: 'Cerrados',
-                statusFilter: TicketStatus.cerrado,
-              ),
-            ),
+          child: TechnicianTicketsView(
+            title: 'Cerrados',
+            statusFilter: TicketStatus.cerrado,
+          ),
+        ),
+        '/technician-tasks': (context) =>
+            const GuardedRoute(child: TechnicianTasksView()),
 
         '/admin-tickets': (_) =>
-            const GuardedRoute(child: AdminTicketsView()),//vista ded tickets
-        '/admin-users': (_) => const GuardedRoute(child: AdminUsersView()),//vista de administrador de usuarios
-        '/admin-metrics': (_) =>
-            const GuardedRoute(child: AdminMetricsView()),//metricas que puede ver el administrador
-            '/admin-problems': (_) =>
-    const GuardedRoute(child: AdminProblemsView()),
-    '/admin-create-task': (context) => const AdminCreateTaskView(),
+            const GuardedRoute(child: AdminTicketsView()), //vista ded tickets
+        '/admin-users': (_) => const GuardedRoute(
+          child: AdminUsersView(),
+        ), //vista de administrador de usuarios
+        '/admin-metrics': (_) => const GuardedRoute(
+          child: AdminMetricsView(),
+        ), //metricas que puede ver el administrador
+        '/admin-problems': (_) =>
+            const GuardedRoute(child: AdminProblemsView()),
+        '/admin-create-task': (context) =>
+            const GuardedRoute(child: AdminCreateTaskView()),
+        '/admin-task': (context) =>
+            const GuardedRoute(child: AdminTasksView()),
       },
     );
   }

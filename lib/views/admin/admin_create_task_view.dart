@@ -12,6 +12,16 @@ class _AdminCreateTaskViewState extends State<AdminCreateTaskView> {
   final tituloController = TextEditingController();
   final descripcionController = TextEditingController();
   final materialesController = TextEditingController();
+  final tipoProblemaController = TextEditingController();
+  
+
+  final List<Map<String, dynamic>> technicians = [
+    {"id": 1, "nombre": "Técnico 1"},
+    {"id": 2, "nombre": "Técnico 2"},
+    {"id": 3, "nombre": "Técnico 3"},
+  ];
+
+  final List<int> selectedTechnicians = [];
 
   DateTime? fechaLimite;
   int? prioridad;
@@ -20,36 +30,35 @@ class _AdminCreateTaskViewState extends State<AdminCreateTaskView> {
   final Color bgColor = const Color(0xFFF5F7FA);
 
   /// ============================
-  /// BACKEND READY 🚀
+  /// BACKEND READY
   /// ============================
   Future<void> _submitTask() async {
     if (tituloController.text.isEmpty ||
         descripcionController.text.isEmpty ||
-        prioridad == null ||
-        fechaLimite == null) {
+        tipoProblemaController.text.isEmpty ||
+        fechaLimite == null ||
+        selectedTechnicians.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Completa todos los campos")),
+        const SnackBar(content: Text("Completa todos los campos obligatorios")),
       );
       return;
     }
 
     final body = {
-      "titulo": tituloController.text,
-      "descripcion": descripcionController.text,
-      "materiales": materialesController.text,
-      "fecha_limite": fechaLimite.toString(),
-      "prioridad": prioridad,
+      "titulo": tituloController.text.trim(),
+      "descripcion": descripcionController.text.trim(),
+      "tipo_problema": tipoProblemaController.text.trim(),
+      "materiales": materialesController.text.trim(),
+      "fecha_limite": fechaLimite!.toIso8601String(),
+      "tecnicos": selectedTechnicians,
     };
 
     print("ENVIANDO A BACKEND:");
     print(body);
 
-    // 🔥 Aquí luego metes tu API
-    // await TasksApi.create(body);
-
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text("Tarea creada")));
+    ).showSnackBar(const SnackBar(content: Text("Tarea creada correctamente")));
   }
 
   Color _getPriorityColor(int p) {
@@ -64,178 +73,236 @@ class _AdminCreateTaskViewState extends State<AdminCreateTaskView> {
         return Colors.grey;
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bgColor,
+      backgroundColor: const Color(0xFFF4F6F8),
       appBar: AppBar(
         title: const Text('Crear tarea'),
-        backgroundColor: primaryColor,
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
         elevation: 0,
       ),
       drawer: const AppDrawer(role: UserRole.admin, title: 'Administrador'),
-
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Center(
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
           child: Container(
-            width: 800,
-            padding: const EdgeInsets.all(24),
+            width: 560,
+            padding: const EdgeInsets.all(22),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _inputClean("Asunto", tituloController),
 
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  /// HEADER SIMPLE (como métricas)
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: primaryColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(Icons.task_alt, color: primaryColor),
-                      ),
-                      const SizedBox(width: 10),
-                      const Text(
-                        "Nueva tarea",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                const SizedBox(height: 14),
+
+                _inputClean("Descripción", descripcionController, maxLines: 4),
+
+                const SizedBox(height: 14),
+
+                _inputClean("Tipo de problema", tipoProblemaController),
+
+                const SizedBox(height: 14),
+
+                _inputClean("Materiales", materialesController, maxLines: 2),
+
+                const SizedBox(height: 14),
+
+                _dateField(),
+
+                const SizedBox(height: 14),
+
+                _techniciansSelector(),
+
+                const SizedBox(height: 20),
+
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEAF4EA),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-
-                  const SizedBox(height: 25),
-
-                  /// INPUTS MÁS LIMPIOS
-                  _input(controller:tituloController,label: "Título" ),
-
-                  const SizedBox(height: 15),
-
-                  _input(
-                    controller: descripcionController,
-                    label: "Descripción",
+                  child: const Text(
+                    "El administrador puede asignar uno o varios técnicos y definir la fecha límite de atención.",
+                    style: TextStyle(fontSize: 13, color: Colors.black87),
                   ),
-                  _input(controller: materialesController, label: "Materiales"),
+                ),
 
-                  /// FECHA + PRIORIDAD
-                  Row(
-                    children: [
-                      /// FECHA
-                      Expanded(
-                        child: InkWell(
-                          onTap: () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime.now(),
-                              lastDate: DateTime(2100),
-                            );
+                const SizedBox(height: 20),
 
-                            if (picked != null) {
-                              setState(() => fechaLimite = picked);
-                            }
-                          },
-                          child: Container(
-                            height: 50,
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            alignment: Alignment.centerLeft,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                            child: Text(
-                              fechaLimite == null
-                                  ? "Seleccionar fecha"
-                                  : fechaLimite.toString().split(' ')[0],
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                          ),
-                        ),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _submitTask,
+                    icon: const Icon(Icons.send),
+                    label: const Text("Guardar tarea"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4CAF50),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
-
-                      const SizedBox(width: 12),
-
-                      /// PRIORIDAD (estilo tuyo)
-                      Expanded(
-                        child: DropdownButtonFormField<int>(
-                          value: prioridad,
-                          decoration: InputDecoration(
-                            labelText: "Prioridad",
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          items: [1, 2, 3].map((p) {
-                            return DropdownMenuItem(
-                              value: p,
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: _getPriorityColor(p),
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text("Prioridad $p"),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (v) => setState(() => prioridad = v),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  /// BOTÓN MÁS DISCRETO (como tu sistema)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: ElevatedButton(
-                      onPressed: _submitTask,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        elevation: 2,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 14,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text("Crear tarea"),
+                      elevation: 0,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
+      ),
+    );
+  }
+  
+
+  Widget _dateField() {
+    return InkWell(
+      onTap: () async {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: fechaLimite ?? DateTime.now(),
+          firstDate: DateTime.now(),
+          lastDate: DateTime(2100),
+        );
+
+        if (picked != null) {
+          setState(() => fechaLimite = picked);
+        }
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF1F3F5),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.calendar_today_outlined,
+              color: Colors.black54,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Text(
+              fechaLimite == null
+                  ? "Fecha límite"
+                  : "${fechaLimite!.day.toString().padLeft(2, '0')}/"
+                        "${fechaLimite!.month.toString().padLeft(2, '0')}/"
+                        "${fechaLimite!.year}",
+              style: TextStyle(
+                fontSize: 15,
+                color: fechaLimite == null ? Colors.black54 : Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _techniciansSelector() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F3F5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Asignar técnicos",
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.black87,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: technicians.map((tech) {
+              final selected = selectedTechnicians.contains(tech["id"]);
+
+              return FilterChip(
+                label: Text(tech["nombre"]),
+                selected: selected,
+                onSelected: (value) {
+                  setState(() {
+                    if (value) {
+                      selectedTechnicians.add(tech["id"]);
+                    } else {
+                      selectedTechnicians.remove(tech["id"]);
+                    }
+                  });
+                },
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _inputClean(
+    String label,
+    TextEditingController controller, {
+    int maxLines = 1,
+  }) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        hintText: label,
+        filled: true,
+        fillColor: const Color(0xFFF1F3F5),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 16,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF4CAF50), width: 1.2),
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(String label) {
+    return InputDecoration(
+      hintText: label,
+      filled: true,
+      fillColor: const Color(0xFFF1F3F5),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
       ),
     );
   }
