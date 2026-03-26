@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -29,6 +30,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
   String? subtipoSeleccionado;
 
   int? idTipoProblemaSeleccionado;
+  List<Map<String, dynamic>> tiposProblema = [];
 
   // Evidencias (imágenes o videos)
   final List<PlatformFile> evidencias = [];
@@ -73,25 +75,11 @@ class _CreateTicketViewState extends State<CreateTicketView> {
   /// MAPA TEMPORAL: SUBTIPO -> ID TIPO_PROBLEMA
   /// (Luego lo reemplazamos por datos reales del backend)
   /// ==========================
-  final Map<String, int> tipoProblemaIds = {
-    "Cambio de precio": 1,
-    "Error al facturar al cliente": 2,
-    "Código erróneo SAT": 3,
-    "Error en serie de factura": 4,
-    "Error al firmar por falla en el servidor de correos smtp": 5,
-    "Reimpresión de ticket": 6,
-
-    "Exceso de usuarios": 7,
-    "No cuenta con licencia": 8,
-    "Producto Talla/Color": 9,
-
-    "Error de conexión": 10,
-    "Falla Telmex": 11,
-    "Error en réplicas (Hamachi)": 12,
-
-    "Falla en el correo": 13,
-    "Falla de luz": 14,
-  };
+@override
+void initState() {
+  super.initState();
+  cargarTiposProblema();
+}
 
   @override
   void dispose() {
@@ -250,6 +238,30 @@ class _CreateTicketViewState extends State<CreateTicketView> {
     }
   }
 
+  Future<void> cargarTiposProblema() async {
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:8000/api/tipo-problema'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer ${Session.token}',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        setState(() {
+          tiposProblema = List<Map<String, dynamic>>.from(
+            data,
+          ).where((tp) => tp['activo'] == true).toList();
+        });
+      }
+    } catch (e) {
+      print('Error: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -339,22 +351,22 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                     /// SUCURSAL
                     DropdownButtonFormField<String>(
                       value: subtipoSeleccionado,
-                      items: tipoProblemaIds.keys
-                          .map(
-                            (nombre) => DropdownMenuItem(
-                              value: nombre,
-                              child: Text(nombre),
-                            ),
-                          )
-                          .toList(),
+                      items: tiposProblema.map((tp) {
+                        return DropdownMenuItem<String>(
+                          value: tp['id_tipo_problema'].toString(),
+                          child: Text(tp['nombre']),
+                        );
+                      }).toList(),
+
                       onChanged: (v) {
                         setState(() {
                           subtipoSeleccionado = v;
                           idTipoProblemaSeleccionado = v != null
-                              ? tipoProblemaIds[v]
+                              ? int.parse(v)
                               : null;
                         });
                       },
+
                       decoration: const InputDecoration(
                         labelText: 'Tipo de problema',
                       ),
