@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../widgets/app_drawer.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../../services/session.dart';
 
 class AdminCreateTaskView extends StatefulWidget {
   const AdminCreateTaskView({super.key});
@@ -13,13 +16,7 @@ class _AdminCreateTaskViewState extends State<AdminCreateTaskView> {
   final descripcionController = TextEditingController();
   final materialesController = TextEditingController();
   final tipoProblemaController = TextEditingController();
-  
-
-  final List<Map<String, dynamic>> technicians = [
-    {"id": 1, "nombre": "Técnico 1"},
-    {"id": 2, "nombre": "Técnico 2"},
-    {"id": 3, "nombre": "Técnico 3"},
-  ];
+  List<Map<String, dynamic>> technicians = [];
 
   final List<int> selectedTechnicians = [];
 
@@ -32,33 +29,72 @@ class _AdminCreateTaskViewState extends State<AdminCreateTaskView> {
   /// ============================
   /// BACKEND READY
   /// ============================
+  ///
+  Future<void> _loadTechnicians() async {
+    final url = Uri.parse("http://127.0.0.1:8000/api/tecnicos");
+
+    final response = await http.get(
+      url,
+      headers: {"Authorization": "Bearer ${Session.token}"},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      setState(() {
+        technicians = List<Map<String, dynamic>>.from(data);
+      });
+    } else {
+      print("Error cargando técnicos");
+    }
+  }
+
   Future<void> _submitTask() async {
     if (tituloController.text.isEmpty ||
         descripcionController.text.isEmpty ||
-        tipoProblemaController.text.isEmpty ||
         fechaLimite == null ||
-        selectedTechnicians.isEmpty) {
+        selectedTechnicians.isEmpty ||
+        prioridad == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Completa todos los campos obligatorios")),
+        const SnackBar(content: Text("Completa todos los campos")),
       );
       return;
     }
 
-    final body = {
-      "titulo": tituloController.text.trim(),
-      "descripcion": descripcionController.text.trim(),
-      "tipo_problema": tipoProblemaController.text.trim(),
-      "materiales": materialesController.text.trim(),
-      "fecha_limite": fechaLimite!.toIso8601String(),
-      "tecnicos": selectedTechnicians,
-    };
+    final url = Uri.parse("http://127.0.0.1:8000/api/tareas");
 
-    print("ENVIANDO A BACKEND:");
-    print(body);
+    final response = await http.post(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer ${Session.token}",
+      },
+      body: jsonEncode({
+        "titulo": tituloController.text.trim(),
+        "descripcion": descripcionController.text.trim(),
+        "materiales": materialesController.text.trim(),
+        "fecha_limite": fechaLimite!.toIso8601String(),
+        "prioridad": prioridad,
+        "tecnicos": selectedTechnicians,
+      }),
+    );
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("Tarea creada correctamente")));
+    if (response.statusCode == 201) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Tarea creada")));
+    } else {
+      print(response.body);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Error al crear tarea")));
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTechnicians();
   }
 
   Color _getPriorityColor(int p) {
@@ -73,6 +109,7 @@ class _AdminCreateTaskViewState extends State<AdminCreateTaskView> {
         return Colors.grey;
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -127,6 +164,9 @@ class _AdminCreateTaskViewState extends State<AdminCreateTaskView> {
 
                 _techniciansSelector(),
 
+                const SizedBox(height: 14),
+                _prioritySelector(),
+
                 const SizedBox(height: 20),
 
                 Container(
@@ -168,7 +208,30 @@ class _AdminCreateTaskViewState extends State<AdminCreateTaskView> {
       ),
     );
   }
-  
+
+  Widget _prioritySelector() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F3F5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: DropdownButton<int>(
+        value: prioridad,
+        isExpanded: true,
+        underline: const SizedBox(),
+        hint: const Text("Selecciona prioridad"),
+        items: const [
+          DropdownMenuItem(value: 1, child: Text("Baja")),
+          DropdownMenuItem(value: 2, child: Text("Media")),
+          DropdownMenuItem(value: 3, child: Text("Alta")),
+        ],
+        onChanged: (value) {
+          setState(() => prioridad = value);
+        },
+      ),
+    );
+  }
 
   Widget _dateField() {
     return InkWell(

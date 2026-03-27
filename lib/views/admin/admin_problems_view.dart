@@ -28,7 +28,7 @@ class _AdminProblemsViewState extends State<AdminProblemsView> {
     String prioridad,
   ) async {
     try {
-      // 🔥 convertir texto → id
+      // convertir texto → id
       int idPrioridad = prioridad == 'alta'
           ? 3
           : prioridad == 'media'
