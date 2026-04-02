@@ -10,8 +10,23 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:html' as html;
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
+import 'package:http_parser/http_parser.dart';
 
 const String baseUrl = 'http://localhost:8000';
+
+MediaType? getMediaType(String name) {
+  final ext = name.split('.').last.toLowerCase();
+
+  if (['jpg', 'jpeg', 'png'].contains(ext)) {
+    return MediaType('image', ext == 'jpg' ? 'jpeg' : ext);
+  }
+
+  if (['mp4', 'mov'].contains(ext)) {
+    return MediaType('video', ext);
+  }
+
+  return null;
+}
 
 class TicketDetailView extends StatefulWidget {
   const TicketDetailView({super.key});
@@ -132,48 +147,48 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     if (_ticketId == null) return;
 
     final uri = Uri.parse('$baseUrl/api/tickets/$_ticketId/mensajes');
-
     var request = http.MultipartRequest('POST', uri);
 
-    request.headers['Authorization'] = 'Bearer ${Session.token}';
-    request.headers['Accept'] = 'application/json';
+    // Solo estos headers son necesarios
+    request.headers.addAll({
+      'Authorization': 'Bearer ${Session.token}',
+      'Accept': 'application/json',
+    });
 
     if (kIsWeb) {
-      if (file.bytes == null) {
-        print("❌ ERROR: NO HAY BYTES");
-        return;
-      }
-
-      print("✅ BYTES: ${file.bytes!.length}");
-
       request.files.add(
         http.MultipartFile.fromBytes(
           'archivo',
           file.bytes!,
           filename: file.name,
+          contentType: getMediaType(file.name),
         ),
       );
     } else {
+      // Aseguramos el MediaType también en móvil por si acaso
       request.files.add(
         await http.MultipartFile.fromPath(
           'archivo',
           file.path!,
           filename: file.name,
+          contentType: getMediaType(file.name),
         ),
       );
     }
 
-    // ESTO ES CLAVE (SI NO, LARAVEL NO LO DETECTA)
+    // Laravel a veces ignora el archivo si no hay otros campos presentes
     request.fields['mensaje'] = '';
 
-    final response = await request.send();
-
-    print("STATUS FILE: ${response.statusCode}");
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
-      await _loadMensajes();
+      print("✅ Subida exitosa");
+      _loadMensajes();
     } else {
-      print("ERROR SUBIENDO ARCHIVO");
+      print(
+        "❌ Error: ${response.body}",
+      ); // Revisa qué error devuelve Laravel exactamente
     }
   }
 
@@ -999,7 +1014,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(12),
                                     child: Image.network(
-                                      "$baseUrl/storage/${m['archivo']}",
+                                      "$baseUrl/api/archivo/${m['archivo']}",
                                       width: 200,
                                       height: 200,
                                       fit: BoxFit.cover,
