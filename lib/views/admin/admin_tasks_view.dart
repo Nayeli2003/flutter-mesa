@@ -1,26 +1,242 @@
 import 'package:flutter/material.dart';
 import '../../widgets/app_drawer.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../../services/session.dart';
+import 'dart:html' as html;
 
-class AdminTasksView extends StatelessWidget {
+class AdminTasksView extends StatefulWidget {
   const AdminTasksView({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final tickets = [
-      {
-        "titulo": "Error facturación",
-        "sucursal": "Sucursal Centro",
-        "estado": "En proceso",
-        "tecnico": "Juan",
-      },
-      {
-        "titulo": "Falla internet",
-        "sucursal": "Sucursal Norte",
-        "estado": "Abierto",
-        "tecnico": null,
-      },
-    ];
+  State<AdminTasksView> createState() => _AdminTasksViewState();
+}
 
+class _AdminTasksViewState extends State<AdminTasksView> {
+  int get total => tareas.length;
+
+  int get proceso => tareas.where((t) => t["estado"] == "pendiente").length;
+
+  int get cerrados => tareas.where((t) => t["estado"] == "finalizado").length;
+  List tareas = [];
+  List tecnicos = [];
+  bool loading = true;
+
+  final String baseUrl = "http://localhost:8000/api";
+
+  @override
+  void initState() {
+    super.initState();
+    fetchTareas();
+    fetchTecnicos();
+  }
+
+  Future<void> fetchTareas() async {
+    final res = await http.get(
+      Uri.parse("$baseUrl/tareas"),
+      headers: {
+        "Authorization": "Bearer ${Session.token}",
+        "Accept": "application/json",
+      },
+    );
+
+    if (res.statusCode == 200) {
+      setState(() {
+        tareas = json.decode(res.body);
+        loading = false;
+      });
+    }
+  }
+
+  Future<void> reabrirTarea(int id) async {
+    final res = await http.post(
+      Uri.parse("$baseUrl/tareas/$id/reabrir"),
+      headers: {
+        "Authorization": "Bearer ${Session.token}",
+        "Accept": "application/json",
+      },
+    );
+
+    if (res.statusCode == 200) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Tarea reabierta")));
+
+      fetchTareas();
+    } else {
+      print(res.body);
+    }
+  }
+
+  Future<void> fetchTecnicos() async {
+    final res = await http.get(
+      Uri.parse("$baseUrl/tecnicos"),
+      headers: {
+        "Authorization": "Bearer ${Session.token}",
+        "Accept": "application/json",
+      },
+    );
+
+    if (res.statusCode == 200) {
+      tecnicos = json.decode(res.body);
+    }
+  }
+
+  Future<void> finalizarTarea(int id) async {
+    final solucionController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Finalizar tarea"),
+        content: TextField(
+          controller: solucionController,
+          decoration: const InputDecoration(labelText: "Solución"),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancelar"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final res = await http.post(
+                Uri.parse("$baseUrl/tareas/$id/finalizar"),
+                headers: {
+                  "Authorization": "Bearer ${Session.token}",
+                  "Accept": "application/json",
+                  "Content-Type": "application/json",
+                },
+                body: jsonEncode({"solucion": solucionController.text}),
+              );
+
+              Navigator.pop(context);
+
+              if (res.statusCode == 200) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Tarea finalizada")),
+                );
+                fetchTareas();
+              } else {
+                print(res.body);
+              }
+            },
+            child: const Text("Guardar"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void descargarPDF(int id) {
+    final url = "$baseUrl/tareas/$id/memoria";
+
+    // web
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute("download", "memoria_tarea.pdf")
+      ..click();
+  }
+
+  void editarTarea(BuildContext context, t) {
+    final titulo = TextEditingController(text: t["titulo"]);
+    final descripcion = TextEditingController(text: t["descripcion"]);
+    final materiales = TextEditingController(text: t["materiales"]);
+
+    List<int> seleccionados = [];
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text("Editar tarea"),
+              content: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: titulo,
+                      decoration: const InputDecoration(labelText: "Título"),
+                    ),
+                    TextField(
+                      controller: descripcion,
+                      decoration: const InputDecoration(
+                        labelText: "Descripción",
+                      ),
+                    ),
+                    TextField(
+                      controller: materiales,
+                      decoration: const InputDecoration(
+                        labelText: "Materiales",
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    const Text("Técnicos"),
+
+                    ...tecnicos.map((tec) {
+                      final selected = seleccionados.contains(
+                        tec["id_usuario"],
+                      );
+
+                      return CheckboxListTile(
+                        title: Text(tec["nombre"]),
+                        value: selected,
+                        onChanged: (val) {
+                          if (val == true) {
+                            seleccionados.add(tec["id_usuario"]);
+                          } else {
+                            seleccionados.remove(tec["id_usuario"]);
+                          }
+
+                          setStateDialog(() {});
+                        },
+                      );
+                    }).toList(),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cancelar"),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    await http.put(
+                      Uri.parse("$baseUrl/tareas/${t["id_tarea"]}"),
+                      headers: {
+                        "Authorization": "Bearer ${Session.token}",
+                        "Content-Type": "application/json",
+                      },
+                      body: jsonEncode({
+                        "titulo": titulo.text,
+                        "descripcion": descripcion.text,
+                        "problematica": t["problematica"],
+                        "materiales": materiales.text,
+                        "fecha_limite": t["fecha_limite"],
+                        "prioridad": t["prioridad"],
+                        "tecnicos": seleccionados,
+                      }),
+                    );
+
+                    Navigator.pop(context);
+                    fetchTareas();
+                  },
+                  child: const Text("Guardar"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  //aqui
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F8),
       appBar: AppBar(
@@ -44,16 +260,21 @@ class AdminTasksView extends StatelessWidget {
                   children: [
                     _metricCard(
                       "Total",
-                      20,
+                      total,
                       Colors.blue,
                       Icons.confirmation_number,
                     ),
                     const SizedBox(width: 10),
-                    _metricCard("Proceso", 8, Colors.orange, Icons.timelapse),
+                    _metricCard(
+                      "Proceso",
+                      proceso,
+                      Colors.orange,
+                      Icons.timelapse,
+                    ),
                     const SizedBox(width: 10),
                     _metricCard(
                       "Cerrados",
-                      12,
+                      cerrados,
                       Colors.green,
                       Icons.check_circle,
                     ),
@@ -65,9 +286,9 @@ class AdminTasksView extends StatelessWidget {
                 /// LISTA
                 Expanded(
                   child: ListView.builder(
-                    itemCount: tickets.length,
+                    itemCount: tareas.length,
                     itemBuilder: (context, index) =>
-                        _adminCard(context, tickets[index]),
+                        _adminCard(context, tareas[index]),
                   ),
                 ),
               ],
@@ -126,7 +347,9 @@ class AdminTasksView extends StatelessWidget {
   /// =========================
   /// CARD DE TICKET
   /// =========================
-  Widget _adminCard(BuildContext context, ticket) {
+  Widget _adminCard(BuildContext context, t) {
+    final isDone = t["estado"] == "finalizado";
+    final sinTecnico = t["tecnico"] == null || t["tecnico"] == "";
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
@@ -146,19 +369,18 @@ class AdminTasksView extends StatelessWidget {
         children: [
           /// TÍTULO
           Text(
-            ticket["titulo"],
+            t["titulo"],
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
 
           const SizedBox(height: 6),
 
-          /// SUCURSAL
           Row(
             children: [
               const Icon(Icons.store, size: 16, color: Colors.black45),
               const SizedBox(width: 6),
               Text(
-                ticket["sucursal"],
+                t["sucursal"],
                 style: const TextStyle(color: Colors.black54),
               ),
             ],
@@ -166,20 +388,14 @@ class AdminTasksView extends StatelessWidget {
 
           const SizedBox(height: 6),
 
-          /// TÉCNICO
           Row(
             children: [
               const Icon(Icons.person, size: 16, color: Colors.black45),
               const SizedBox(width: 6),
               Text(
-                ticket["tecnico"] ?? "Sin asignar",
+                sinTecnico ? "Sin asignar" : t["tecnico"],
                 style: TextStyle(
-                  color: ticket["tecnico"] == null
-                      ? Colors.redAccent
-                      : Colors.black87,
-                  fontWeight: ticket["tecnico"] == null
-                      ? FontWeight.w500
-                      : FontWeight.normal,
+                  color: sinTecnico ? Colors.redAccent : Colors.black87,
                 ),
               ),
             ],
@@ -190,12 +406,29 @@ class AdminTasksView extends StatelessWidget {
           /// ACCIONES
           Row(
             children: [
-              _statusChip(ticket["estado"]),
+              _statusChip(t["estado"]),
               const Spacer(),
 
-              _iconAction(Icons.person_add, Colors.blue, () {}),
+              if (isDone)
+                _iconAction(Icons.refresh, Colors.orange, () {
+                  reabrirTarea(t["id_tarea"]);
+                }),
+
+              if (!isDone)
+                _iconAction(Icons.check, Colors.green, () {
+                  finalizarTarea(t["id_tarea"]);
+                }),
+
+              if (isDone)
+                _iconAction(Icons.picture_as_pdf, Colors.red, () {
+                  descargarPDF(t["id_tarea"]);
+                }),
+
               const SizedBox(width: 8),
               _iconAction(Icons.visibility, Colors.grey, () {}),
+              _iconAction(Icons.edit, Colors.blue, () {
+                editarTarea(context, t);
+              }),
             ],
           ),
         ],
@@ -228,14 +461,14 @@ class AdminTasksView extends StatelessWidget {
     Color color;
 
     switch (status) {
-      case "En proceso":
+      case "pendiente":
         color = Colors.orange;
         break;
-      case "Abierto":
-        color = Colors.redAccent;
+      case "finalizado":
+        color = Colors.green;
         break;
       default:
-        color = Colors.green;
+        color = Colors.grey;
     }
 
     return Container(

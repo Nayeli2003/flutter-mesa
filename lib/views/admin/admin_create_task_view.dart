@@ -26,10 +26,33 @@ class _AdminCreateTaskViewState extends State<AdminCreateTaskView> {
   final Color primaryColor = const Color(0xFF4CAF50);
   final Color bgColor = const Color(0xFFF5F7FA);
 
+  List<Map<String, dynamic>> sucursales = [];
+  int? sucursalSeleccionada;
+
   /// ============================
   /// BACKEND READY
   /// ============================
   ///
+  ///
+  Future<void> _loadSucursales() async {
+    final url = Uri.parse("http://127.0.0.1:8000/api/sucursales");
+
+    final response = await http.get(
+      url,
+      headers: {"Authorization": "Bearer ${Session.token}"},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      setState(() {
+        sucursales = List<Map<String, dynamic>>.from(data);
+      });
+    } else {
+      print("Error cargando sucursales");
+    }
+  }
+
   Future<void> _loadTechnicians() async {
     final url = Uri.parse("http://127.0.0.1:8000/api/tecnicos");
 
@@ -61,6 +84,21 @@ class _AdminCreateTaskViewState extends State<AdminCreateTaskView> {
       return;
     }
 
+    // 🔥 VALIDAR PROBLEMÁTICA (TE FALTABA)
+    if (tipoProblemaController.text.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Escribe la problemática")));
+      return;
+    }
+
+    if (sucursalSeleccionada == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Selecciona sucursal")));
+      return;
+    }
+
     final url = Uri.parse("http://127.0.0.1:8000/api/tareas");
 
     final response = await http.post(
@@ -72,9 +110,11 @@ class _AdminCreateTaskViewState extends State<AdminCreateTaskView> {
       body: jsonEncode({
         "titulo": tituloController.text.trim(),
         "descripcion": descripcionController.text.trim(),
+        "problematica": tipoProblemaController.text.trim(),
         "materiales": materialesController.text.trim(),
         "fecha_limite": fechaLimite!.toIso8601String(),
         "prioridad": prioridad,
+        "id_sucursal": sucursalSeleccionada,
         "tecnicos": selectedTechnicians,
       }),
     );
@@ -83,6 +123,19 @@ class _AdminCreateTaskViewState extends State<AdminCreateTaskView> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text("Tarea creada")));
+
+      // LIMPIAR FORM 
+      tituloController.clear();
+      descripcionController.clear();
+      materialesController.clear();
+      tipoProblemaController.clear();
+
+      setState(() {
+        selectedTechnicians.clear();
+        prioridad = null;
+        fechaLimite = null;
+        sucursalSeleccionada = null;
+      });
     } else {
       print(response.body);
       ScaffoldMessenger.of(
@@ -95,6 +148,7 @@ class _AdminCreateTaskViewState extends State<AdminCreateTaskView> {
   void initState() {
     super.initState();
     _loadTechnicians();
+    _loadSucursales();
   }
 
   Color _getPriorityColor(int p) {
@@ -150,7 +204,7 @@ class _AdminCreateTaskViewState extends State<AdminCreateTaskView> {
 
                 const SizedBox(height: 14),
 
-                _inputClean("Tipo de problema", tipoProblemaController),
+                _inputClean("Problemática", tipoProblemaController),
 
                 const SizedBox(height: 14),
 
@@ -166,6 +220,9 @@ class _AdminCreateTaskViewState extends State<AdminCreateTaskView> {
 
                 const SizedBox(height: 14),
                 _prioritySelector(),
+
+                const SizedBox(height: 14),
+                _sucursalSelector(),
 
                 const SizedBox(height: 20),
 
@@ -205,6 +262,33 @@ class _AdminCreateTaskViewState extends State<AdminCreateTaskView> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _sucursalSelector() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F3F5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: DropdownButton<int>(
+        value: sucursalSeleccionada,
+        isExpanded: true,
+        underline: const SizedBox(),
+        hint: const Text("Selecciona sucursal"),
+        items: sucursales.map((s) {
+          return DropdownMenuItem<int>(
+            value: s["id_sucursal"],
+            child: Text(s["nombre"]),
+          );
+        }).toList(),
+        onChanged: (value) {
+          setState(() {
+            sucursalSeleccionada = value;
+          });
+        },
       ),
     );
   }
@@ -303,7 +387,7 @@ class _AdminCreateTaskViewState extends State<AdminCreateTaskView> {
             spacing: 8,
             runSpacing: 8,
             children: technicians.map((tech) {
-              final selected = selectedTechnicians.contains(tech["id"]);
+              final selected = selectedTechnicians.contains(tech["id_usuario"]);
 
               return FilterChip(
                 label: Text(tech["nombre"]),
@@ -311,9 +395,9 @@ class _AdminCreateTaskViewState extends State<AdminCreateTaskView> {
                 onSelected: (value) {
                   setState(() {
                     if (value) {
-                      selectedTechnicians.add(tech["id"]);
+                      selectedTechnicians.add(tech["id_usuario"]);
                     } else {
-                      selectedTechnicians.remove(tech["id"]);
+                      selectedTechnicians.remove(tech["id_usuario"]);
                     }
                   });
                 },
