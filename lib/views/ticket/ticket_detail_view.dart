@@ -68,11 +68,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
 
     final response = await http.post(
       Uri.parse('$baseUrl/api/tickets/$_ticketId/asignar'),
-      headers: {
-        'Authorization': 'Bearer ${Session.token}',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
+
       body: jsonEncode({'id_tecnico': idTecnico}),
     );
 
@@ -135,14 +131,21 @@ class _TicketDetailViewState extends State<TicketDetailView> {
   Future<void> _sendFile(PlatformFile file) async {
     if (_ticketId == null) return;
 
-    var request = http.MultipartRequest(
-      'POST',
-      Uri.parse('$baseUrl/api/tickets/$_ticketId/mensajes'),
-    );
+    final uri = Uri.parse('$baseUrl/api/tickets/$_ticketId/mensajes');
+
+    var request = http.MultipartRequest('POST', uri);
 
     request.headers['Authorization'] = 'Bearer ${Session.token}';
+    request.headers['Accept'] = 'application/json';
 
     if (kIsWeb) {
+      if (file.bytes == null) {
+        print("❌ ERROR: NO HAY BYTES");
+        return;
+      }
+
+      print("✅ BYTES: ${file.bytes!.length}");
+
       request.files.add(
         http.MultipartFile.fromBytes(
           'archivo',
@@ -152,14 +155,25 @@ class _TicketDetailViewState extends State<TicketDetailView> {
       );
     } else {
       request.files.add(
-        await http.MultipartFile.fromPath('archivo', file.path!),
+        await http.MultipartFile.fromPath(
+          'archivo',
+          file.path!,
+          filename: file.name,
+        ),
       );
     }
 
-    var response = await request.send();
+    // ESTO ES CLAVE (SI NO, LARAVEL NO LO DETECTA)
+    request.fields['mensaje'] = '';
+
+    final response = await request.send();
+
+    print("STATUS FILE: ${response.statusCode}");
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       await _loadMensajes();
+    } else {
+      print("ERROR SUBIENDO ARCHIVO");
     }
   }
 
@@ -206,12 +220,20 @@ class _TicketDetailViewState extends State<TicketDetailView> {
       headers: {
         'Authorization': 'Bearer ${Session.token}',
         'Accept': 'application/json',
+        'Content-Type': 'application/json', // 🔥 CLAVE
       },
-      body: {'mensaje': text},
+      body: jsonEncode({
+        'mensaje': text, // 🔥 CLAVE
+      }),
     );
+
+    print("STATUS: ${response.statusCode}");
+    print("BODY: ${response.body}");
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       await _loadMensajes();
+    } else {
+      print("ERROR AL ENVIAR");
     }
   }
 
@@ -922,6 +944,11 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                     itemCount: _mensajes.length,
                     itemBuilder: (context, index) {
                       final m = _mensajes[index];
+                      final usuario = m['usuario'];
+                      final nombre = usuario != null
+                          ? usuario['nombre']
+                          : 'Usuario';
+                      final rol = usuario != null ? usuario['rol'] : '';
 
                       final bool isMe =
                           (m['id_usuario'] ?? 0) == Session.idUsuario;
@@ -946,6 +973,15 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              Text(
+                                nombre,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: isMe ? Colors.white70 : Colors.black54,
+                                ),
+                              ),
+
                               if (m['mensaje'] != null &&
                                   m['mensaje'].toString().isNotEmpty)
                                 Text(
@@ -959,20 +995,30 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                               if (m['archivo'] != null &&
                                   m['archivo'].toString().isNotEmpty)
                                 Padding(
-                                  padding: const EdgeInsets.only(top: 6),
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      // Aquí después podemos abrir o descargar archivo
-                                    },
-                                    child: Text(
-                                      "📎 Archivo adjunto",
-                                      style: TextStyle(
-                                        color: isMe
-                                            ? Colors.white70
-                                            : Colors.blue,
-                                        fontWeight: FontWeight.w700,
-                                        decoration: TextDecoration.underline,
-                                      ),
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.network(
+                                      "$baseUrl/storage/${m['archivo']}",
+                                      width: 200,
+                                      height: 200,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                            print("ERROR IMG: $error");
+
+                                            return Container(
+                                              width: 200,
+                                              height: 200,
+                                              color: Colors.black12,
+                                              child: const Center(
+                                                child: Icon(
+                                                  Icons.broken_image,
+                                                  size: 40,
+                                                ),
+                                              ),
+                                            );
+                                          },
                                     ),
                                   ),
                                 ),
@@ -1014,6 +1060,20 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                       Expanded(
                         child: TextField(
                           controller: _commentController,
+
+                          textInputAction: TextInputAction
+                              .send, // 🔥 cambia el botón del teclado
+
+                          onSubmitted: (value) async {
+                            final text = value.trim();
+                            if (text.isEmpty) return;
+
+                            print("ENTER FUNCIONA");
+
+                            await _addComment(text: text);
+                            _commentController.clear();
+                          },
+
                           decoration: const InputDecoration(
                             hintText: "Escribe un mensaje...",
                             border: OutlineInputBorder(
