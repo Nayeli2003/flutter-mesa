@@ -183,9 +183,10 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     final response = await http.Response.fromStream(streamedResponse);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
-      print("✅ Subida exitosa");
-      _loadMensajes();
-    } else {
+  print("✅ Subida exitosa");
+  await _loadTicket();      // 🔥 Recarga TODO el ticket (evidencias actualizadas)
+  await _loadMensajes();    // Opcional, para mantener el chat actualizado
+} else {
       print(
         "❌ Error: ${response.body}",
       ); // Revisa qué error devuelve Laravel exactamente
