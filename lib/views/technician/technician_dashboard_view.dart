@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:mesa_sana/widgets/app_drawer.dart';
 import '../../services/session.dart';
+import '../../config/api_config.dart';
 
 class TechnicianDashboardView extends StatefulWidget {
   const TechnicianDashboardView({super.key});
@@ -12,7 +13,6 @@ class TechnicianDashboardView extends StatefulWidget {
       _TechnicianDashboardViewState();
 }
 
-const String baseUrl = 'http://localhost:8000';
 
 class _TechnicianDashboardViewState extends State<TechnicianDashboardView> {
   List<dynamic> tickets = [];
@@ -26,7 +26,7 @@ class _TechnicianDashboardViewState extends State<TechnicianDashboardView> {
 
   Future<void> _loadTickets() async {
     final res = await http.get(
-      Uri.parse('$baseUrl/api/mis-tickets'),
+      Uri.parse('${ApiConfig.baseUrl}/mis-tickets'),
       headers: {
         'Authorization': 'Bearer ${Session.token}',
         'Accept': 'application/json',

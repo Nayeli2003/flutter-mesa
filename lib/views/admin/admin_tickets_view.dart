@@ -4,8 +4,8 @@ import 'dart:ui' show PointerDeviceKind;
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../services/session.dart';
+import '../../config/api_config.dart';
 
-const String baseUrl = 'http://127.0.0.1:8000';
 
 enum AdminTicketStatus { abierto, enProceso, cerrado }
 
@@ -90,7 +90,7 @@ class _AdminTicketsViewState extends State<AdminTicketsView> {
     }
 
     final res = await http.get(
-      Uri.parse('$baseUrl/api/tickets'),
+      Uri.parse(ApiConfig.tickets),
       headers: {
         'Authorization': 'Bearer ${Session.token}',
         'Accept': 'application/json',

@@ -4,6 +4,7 @@ import '../../widgets/app_drawer.dart';
 import 'package:http/http.dart' as http;
 import '../../services/session.dart';
 import 'dart:convert';
+import '../../config/api_config.dart'; 
 
 class AdminMetricsView extends StatefulWidget {
   const AdminMetricsView({super.key});
@@ -31,7 +32,7 @@ class _AdminMetricsViewState extends State<AdminMetricsView> {
 
   Future<void> _loadMetrics() async {
     final res = await http.get(
-      Uri.parse('http://127.0.0.1:8000/api/tickets'),
+      Uri.parse(ApiConfig.tickets),
       headers: {
         'Authorization': 'Bearer ${Session.token}',
         'Accept': 'application/json',

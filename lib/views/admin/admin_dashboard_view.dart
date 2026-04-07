@@ -3,6 +3,7 @@ import 'package:mesa_sana/widgets/app_drawer.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../services/session.dart';
+import '../../config/api_config.dart';
 
 class AdminDashboardView extends StatefulWidget {
   const AdminDashboardView({super.key});
@@ -26,7 +27,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
 
   Future<void> _loadDashboard() async {
     final res = await http.get(
-      Uri.parse('http://127.0.0.1:8000/api/tickets'),
+      Uri.parse('${ApiConfig.baseUrl}/tickets'),
       headers: {
         'Authorization': 'Bearer ${Session.token}',
         'Accept': 'application/json',

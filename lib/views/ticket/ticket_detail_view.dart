@@ -11,8 +11,7 @@ import 'dart:html' as html;
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
 import 'package:http_parser/http_parser.dart';
-
-const String baseUrl = 'http://localhost:8000';
+import '../../config/api_config.dart';
 
 MediaType? getMediaType(String name) {
   final ext = name.split('.').last.toLowerCase();
@@ -82,7 +81,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     if (_ticketId == null) return;
 
     final response = await http.post(
-      Uri.parse('$baseUrl/api/tickets/$_ticketId/asignar'),
+      Uri.parse('${ApiConfig.tickets}/$_ticketId/asignar'),
 
       body: jsonEncode({'id_tecnico': idTecnico}),
     );
@@ -98,7 +97,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     if (_ticketId == null) return;
 
     final response = await http.get(
-      Uri.parse('$baseUrl/api/tickets/$_ticketId'),
+      Uri.parse('${ApiConfig.tickets}/$_ticketId'),
       headers: {
         'Authorization': 'Bearer ${Session.token}',
         'Accept': 'application/json',
@@ -129,7 +128,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     if (_ticketId == null) return;
 
     final response = await http.get(
-      Uri.parse('$baseUrl/api/tickets/$_ticketId/mensajes'),
+      Uri.parse(ApiConfig.ticketMensajes(int.parse(_ticketId!))),
       headers: {
         'Authorization': 'Bearer ${Session.token}',
         'Accept': 'application/json',
@@ -146,7 +145,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
   Future<void> _sendFile(PlatformFile file) async {
     if (_ticketId == null) return;
 
-    final uri = Uri.parse('$baseUrl/api/tickets/$_ticketId/mensajes');
+    final uri = Uri.parse(ApiConfig.ticketMensajes(int.parse(_ticketId!)));
     var request = http.MultipartRequest('POST', uri);
 
     // Solo estos headers son necesarios
@@ -183,10 +182,10 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     final response = await http.Response.fromStream(streamedResponse);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
-  print("✅ Subida exitosa");
-  await _loadTicket();      // 🔥 Recarga TODO el ticket (evidencias actualizadas)
-  await _loadMensajes();    // Opcional, para mantener el chat actualizado
-} else {
+      print("✅ Subida exitosa");
+      await _loadTicket(); // 🔥 Recarga TODO el ticket (evidencias actualizadas)
+      await _loadMensajes(); // Opcional, para mantener el chat actualizado
+    } else {
       print(
         "❌ Error: ${response.body}",
       ); // Revisa qué error devuelve Laravel exactamente
@@ -203,7 +202,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     if (newStatus == 'Cerrado') estadoId = 3;
 
     final response = await http.patch(
-      Uri.parse('$baseUrl/api/tickets/$_ticketId/estado'),
+      Uri.parse('${ApiConfig.tickets}/$_ticketId/estado'),
       headers: {
         'Authorization': 'Bearer ${Session.token}',
         'Accept': 'application/json',
@@ -232,7 +231,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     if (_ticketId == null) return;
 
     final response = await http.post(
-      Uri.parse('$baseUrl/api/tickets/$_ticketId/mensajes'),
+      Uri.parse(ApiConfig.ticketMensajes(int.parse(_ticketId!))),
       headers: {
         'Authorization': 'Bearer ${Session.token}',
         'Accept': 'application/json',
@@ -255,7 +254,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
 
   Future<void> _loadTechnicians() async {
     final response = await http.get(
-      Uri.parse('$baseUrl/api/usuarios?id_rol=2'),
+      Uri.parse('${ApiConfig.usuarios}?id_rol=2'),
       headers: {
         'Authorization': 'Bearer ${Session.token}',
         'Accept': 'application/json',
@@ -383,7 +382,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     if (newStatus == 'Cerrado') estadoId = 3;
 
     final response = await http.post(
-      Uri.parse('$baseUrl/api/tickets/$_ticketId/resolver'),
+      Uri.parse('${ApiConfig.tickets}/$_ticketId/resolver'),
       headers: {
         'Authorization': 'Bearer ${Session.token}',
         'Accept': 'application/json',
@@ -405,7 +404,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     if (_ticketId == null) return;
 
     final response = await http.get(
-      Uri.parse('$baseUrl/api/tickets/$_ticketId/memoria'),
+      Uri.parse('${ApiConfig.tickets}/$_ticketId/memoria'),
       headers: {
         'Authorization': 'Bearer ${Session.token}',
         'Accept': 'application/pdf',
@@ -1015,7 +1014,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(12),
                                     child: Image.network(
-                                      "$baseUrl/api/archivo/${m['archivo']}",
+                                      ApiConfig.archivo(m['archivo']),
                                       width: 200,
                                       height: 200,
                                       fit: BoxFit.cover,

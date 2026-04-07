@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 // Para contentType en multipart (video/image)
 import 'package:http_parser/http_parser.dart';
 import '../../services/session.dart';
+import '../../config/api_config.dart';
 
 //const String baseUrl = 'http://localhost:8000';
 
@@ -164,9 +165,7 @@ void initState() {
 
     try {
       // 2. Configurar la petición (Ajusta la URL a tu API real)
-      final url = Uri.parse(
-        'http://localhost:8000/api/tickets',
-      ); //final url = Uri.parse('http://127.0.0.1:8000/api/tickets');
+      final url = Uri.parse(ApiConfig.tickets); //final url = Uri.parse('http://127.0.0.1:8000/api/tickets');
       var request = http.MultipartRequest('POST', url);
 
       request.headers['Authorization'] = 'Bearer ${Session.token}';
@@ -241,7 +240,7 @@ void initState() {
   Future<void> cargarTiposProblema() async {
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:8000/api/tipo-problema'),
+       Uri.parse(ApiConfig.tipoProblema),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer ${Session.token}',

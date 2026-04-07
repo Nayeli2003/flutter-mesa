@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../services/session.dart';
 import 'dart:html' as html;
+import '../../config/api_config.dart';
 
 class AdminTasksView extends StatefulWidget {
   const AdminTasksView({super.key});
@@ -22,7 +23,6 @@ class _AdminTasksViewState extends State<AdminTasksView> {
   List tecnicos = [];
   bool loading = true;
 
-  final String baseUrl = "http://localhost:8000/api";
 
   @override
   void initState() {
@@ -33,7 +33,7 @@ class _AdminTasksViewState extends State<AdminTasksView> {
 
   Future<void> fetchTareas() async {
     final res = await http.get(
-      Uri.parse("$baseUrl/tareas"),
+      Uri.parse(ApiConfig.tareas),
       headers: {
         "Authorization": "Bearer ${Session.token}",
         "Accept": "application/json",
@@ -50,7 +50,7 @@ class _AdminTasksViewState extends State<AdminTasksView> {
 
   Future<void> reabrirTarea(int id) async {
     final res = await http.post(
-      Uri.parse("$baseUrl/tareas/$id/reabrir"),
+      Uri.parse("${ApiConfig.tareas}/$id/reabrir"),
       headers: {
         "Authorization": "Bearer ${Session.token}",
         "Accept": "application/json",
@@ -70,7 +70,7 @@ class _AdminTasksViewState extends State<AdminTasksView> {
 
   Future<void> fetchTecnicos() async {
     final res = await http.get(
-      Uri.parse("$baseUrl/tecnicos"),
+      Uri.parse("${ApiConfig.baseUrl}/tecnicos"),
       headers: {
         "Authorization": "Bearer ${Session.token}",
         "Accept": "application/json",
@@ -101,7 +101,7 @@ class _AdminTasksViewState extends State<AdminTasksView> {
           ElevatedButton(
             onPressed: () async {
               final res = await http.post(
-                Uri.parse("$baseUrl/tareas/$id/finalizar"),
+                Uri.parse(ApiConfig.finalizarTarea(id)),
                 headers: {
                   "Authorization": "Bearer ${Session.token}",
                   "Accept": "application/json",
@@ -129,7 +129,7 @@ class _AdminTasksViewState extends State<AdminTasksView> {
   }
 
   void descargarPDF(int id) {
-    final url = "$baseUrl/tareas/$id/memoria";
+    final url = ApiConfig.memoriaTarea(id);
 
     // web
     final anchor = html.AnchorElement(href: url)
@@ -205,7 +205,7 @@ class _AdminTasksViewState extends State<AdminTasksView> {
                 ElevatedButton(
                   onPressed: () async {
                     await http.put(
-                      Uri.parse("$baseUrl/tareas/${t["id_tarea"]}"),
+                      Uri.parse("${ApiConfig.tareas}/${t["id_tarea"]}"),
                       headers: {
                         "Authorization": "Bearer ${Session.token}",
                         "Content-Type": "application/json",

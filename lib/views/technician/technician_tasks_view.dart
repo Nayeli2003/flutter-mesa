@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'dart:html' as html;
+import '../../config/api_config.dart';
 
 class TechnicianTasksView extends StatefulWidget {
   const TechnicianTasksView({super.key});
@@ -21,7 +22,6 @@ class _TechnicianTasksViewState extends State<TechnicianTasksView> {
   List tareas = [];
   bool loading = true;
 
-  final String baseUrl = "http://localhost:8000/api";
 
   @override
   void initState() {
@@ -31,7 +31,7 @@ class _TechnicianTasksViewState extends State<TechnicianTasksView> {
 
   Future<void> fetchTareas() async {
     final res = await http.get(
-      Uri.parse("$baseUrl/mis-tareas"),
+      Uri.parse(ApiConfig.misTareas),
       headers: {
         "Authorization": "Bearer ${Session.token}",
         "Accept": "application/json",
@@ -51,7 +51,7 @@ class _TechnicianTasksViewState extends State<TechnicianTasksView> {
   /// =========================
   Future<void> finalizarTarea(int id, String solucion) async {
     final res = await http.post(
-      Uri.parse("$baseUrl/tareas/$id/finalizar"),
+      Uri.parse(ApiConfig.finalizarTarea(id)),
       headers: {
         "Authorization": "Bearer ${Session.token}",
         "Accept": "application/json",
@@ -363,7 +363,7 @@ class _TechnicianTasksViewState extends State<TechnicianTasksView> {
                   icon: const Icon(Icons.download),
                   label: const Text("Descargar"),
                   onPressed: () {
-                    final url = "$baseUrl/tareas/${t["id_tarea"]}/memoria";
+                    final url = ApiConfig.memoriaTarea(t["id_tarea"]);
 
                     if (kIsWeb) {
                        descargarWeb(url);

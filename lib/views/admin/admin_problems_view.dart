@@ -3,6 +3,7 @@ import '../../widgets/app_drawer.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../services/session.dart';
+import '../../config/api_config.dart';
 
 class AdminProblemsView extends StatefulWidget {
   const AdminProblemsView({super.key});
@@ -36,7 +37,7 @@ class _AdminProblemsViewState extends State<AdminProblemsView> {
           : 1;
 
       final response = await http.post(
-        Uri.parse('http://localhost:8000/api/tipo-problema'),
+        Uri.parse(ApiConfig.tipoProblema),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer ${Session.token}',
@@ -64,7 +65,7 @@ class _AdminProblemsViewState extends State<AdminProblemsView> {
   Future<void> cargarProblemas() async {
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:8000/api/tipo-problema'),
+        Uri.parse(ApiConfig.tipoProblema),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer ${Session.token}',
@@ -171,7 +172,7 @@ class _AdminProblemsViewState extends State<AdminProblemsView> {
 
   Future<void> eliminarBackend(int id) async {
     await http.delete(
-      Uri.parse('http://localhost:8000/api/tipo-problema/$id'),
+      Uri.parse(ApiConfig.tipoProblemaById(id)),
       headers: {
         'Accept': 'application/json',
         'Authorization': 'Bearer ${Session.token}',
@@ -255,7 +256,7 @@ class _AdminProblemsViewState extends State<AdminProblemsView> {
   Future<void> actualizarPrioridad(int id, String prioridad) async {
     try {
       final response = await http.put(
-        Uri.parse('http://localhost:8000/api/tipo-problema/$id'),
+        Uri.parse(ApiConfig.tipoProblemaById(id)),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer ${Session.token}',
@@ -277,7 +278,7 @@ class _AdminProblemsViewState extends State<AdminProblemsView> {
   Future<void> toggleBackend(int id) async {
     try {
       final response = await http.put(
-        Uri.parse('http://localhost:8000/api/tipo-problema/$id/toggle'),
+        Uri.parse(ApiConfig.toggleProblema(id)),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer ${Session.token}',

@@ -3,6 +3,7 @@ import '../../widgets/app_drawer.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../services/session.dart';
+import '../../config/api_config.dart';
 
 class AdminCreateTaskView extends StatefulWidget {
   const AdminCreateTaskView({super.key});
@@ -35,7 +36,7 @@ class _AdminCreateTaskViewState extends State<AdminCreateTaskView> {
   ///
   ///
   Future<void> _loadSucursales() async {
-    final url = Uri.parse("http://127.0.0.1:8000/api/sucursales");
+    final url = Uri.parse(ApiConfig.sucursales);
 
     final response = await http.get(
       url,
@@ -54,7 +55,7 @@ class _AdminCreateTaskViewState extends State<AdminCreateTaskView> {
   }
 
   Future<void> _loadTechnicians() async {
-    final url = Uri.parse("http://127.0.0.1:8000/api/tecnicos");
+    final url = Uri.parse(ApiConfig.tecnicos);
 
     final response = await http.get(
       url,
@@ -99,7 +100,7 @@ class _AdminCreateTaskViewState extends State<AdminCreateTaskView> {
       return;
     }
 
-    final url = Uri.parse("http://127.0.0.1:8000/api/tareas");
+    final url = Uri.parse(ApiConfig.tareas);
 
     final response = await http.post(
       url,

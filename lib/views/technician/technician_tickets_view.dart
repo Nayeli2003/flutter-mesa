@@ -3,8 +3,7 @@ import '../../widgets/app_drawer.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../services/session.dart';
-
-const String baseUrl = 'http://localhost:8000';
+import '../../config/api_config.dart';
 
 enum TicketStatus { asignado, enProceso, cerrado }
 
@@ -75,8 +74,8 @@ class _TechnicianTicketsViewState extends State<TechnicianTicketsView> {
     }
 
     final url = _isClosedScreen
-        ? '$baseUrl/api/tickets/cerrados'
-        : '$baseUrl/api/mis-tickets';
+        ? "${ApiConfig.tickets}/cerrados"
+        : "${ApiConfig.baseUrl}/mis-tickets";
 
     final res = await http.get(
       Uri.parse(url),
